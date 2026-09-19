@@ -55,7 +55,7 @@ class _AdminPromoViewState extends ConsumerState<AdminPromoView> {
                           ),
                           const SizedBox(height: 4),
                           const Text(
-                            'Manage time-bound discounts, percentage caps, and usage limits across Bengaluru.',
+                            'Manage time-bound discounts, percentage caps, and usage limits across Hyderabad.',
                             style: TextStyle(color: AppColors.textSecondaryLight, fontSize: 13),
                           ),
                         ],
@@ -523,7 +523,7 @@ class _CreatePromoDialogState extends State<_CreatePromoDialog> {
                   controller: _descController,
                   decoration: const InputDecoration(
                     labelText: 'Campaign Description *',
-                    hintText: 'e.g. 20% off for daily Bengaluru office commuters',
+                    hintText: 'e.g. 20% off for daily Hyderabad office commuters',
                   ),
                   validator: (val) {
                     if (val == null || val.trim().isEmpty) return 'Description is required';

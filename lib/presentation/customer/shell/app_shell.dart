@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/utils/currency_formatter.dart';
 import '../../../core/utils/responsive_layout.dart';
 import '../../common/providers/auth_state_provider.dart';
+import '../../common/providers/wallet_providers.dart';
 import '../auth/auth_modal.dart';
 
 class AppShell extends ConsumerWidget {
@@ -25,6 +27,7 @@ class AppShell extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final isDesktop = ResponsiveLayout.isDesktop(context);
     final user = ref.watch(authControllerProvider).value;
+    final walletAsync = ref.watch(userWalletFutureProvider);
 
     if (isDesktop) {
       return Scaffold(
@@ -121,7 +124,7 @@ class AppShell extends ConsumerWidget {
                         Icon(Icons.circle, color: AppColors.success, size: 8),
                         SizedBox(width: 6),
                         Text(
-                          'Bengaluru • 4 Hubs Active',
+                          'Hyderabad • 2 EV Hubs Active (Miyapur & Kondapur)',
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
@@ -133,6 +136,40 @@ class AppShell extends ConsumerWidget {
                   ),
 
                   const Spacer(),
+
+                  // Live VeloCash Wallet Pill
+                  InkWell(
+                    onTap: () => context.push('/wallet'),
+                    borderRadius: BorderRadius.circular(20),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.account_balance_wallet_rounded, color: AppColors.primary, size: 16),
+                          const SizedBox(width: 6),
+                          walletAsync.when(
+                            data: (wallet) => Text(
+                              'VeloCash: ${CurrencyFormatter.format(wallet?.totalBalance ?? 0.0)}',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.primaryDark,
+                              ),
+                            ),
+                            loading: () => const Text('VeloCash: ...', style: TextStyle(fontSize: 12, color: AppColors.primaryDark)),
+                            error: (e, s) => const Text('VeloCash', style: TextStyle(fontSize: 12, color: AppColors.primaryDark)),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
 
                   // Quick Admin Operations Desk Launch Button
                   OutlinedButton.icon(

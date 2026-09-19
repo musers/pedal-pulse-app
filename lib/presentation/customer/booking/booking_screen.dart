@@ -8,11 +8,13 @@ import '../../../domain/entities/bike.dart';
 import '../../../domain/entities/booking.dart';
 import '../../../domain/entities/promo_code.dart';
 import '../../../domain/entities/station.dart';
+import '../../../domain/entities/wallet.dart';
 import '../../../services/payment/payment_service.dart';
 import '../../common/providers/auth_state_provider.dart';
 import '../../common/providers/notification_providers.dart';
 import '../../common/providers/payment_providers.dart';
 import '../../common/providers/repository_providers.dart';
+import '../../common/providers/wallet_providers.dart';
 import '../auth/auth_modal.dart';
 import '../bike_details/bike_details_screen.dart';
 import '../explore/explore_screen.dart';
@@ -32,6 +34,7 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
   int _selectedHours = 4;
   String? _pickupStationId;
   String? _returnStationId;
+  bool _useWalletBalance = true;
   bool _isSubmitting = false;
 
   PromoCode? _appliedPromo;
@@ -90,6 +93,7 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
   Widget build(BuildContext context) {
     final bikeAsync = ref.watch(bikeDetailsFutureProvider(widget.bikeId));
     final stationsAsync = ref.watch(stationsFutureProvider);
+    final walletAsync = ref.watch(userWalletFutureProvider);
     final isDesktop = ResponsiveLayout.isDesktop(context);
 
     return Scaffold(
@@ -113,13 +117,20 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
               : _selectedHours * bike.hourlyRate;
           final double gstAmount = (rentalFare * 0.18);
           final double discountedRentalFare = (rentalFare - _discountAmount).clamp(0.0, double.infinity);
-          final double totalPayable = discountedRentalFare + gstAmount + bike.securityDeposit;
+          final double grossPayable = discountedRentalFare + gstAmount + bike.securityDeposit;
+
+          final wallet = walletAsync.value;
+          final double availableWallet = wallet?.totalBalance ?? 0.0;
+          final double walletDeduction = _useWalletBalance
+              ? (availableWallet > grossPayable ? grossPayable : availableWallet)
+              : 0.0;
+          final double netGatewayPayable = (grossPayable - walletDeduction).clamp(0.0, double.infinity);
 
           final pricing = PricingBreakdown(
             rentalFare: discountedRentalFare,
             gstAmount: gstAmount,
             securityDeposit: bike.securityDeposit,
-            totalPayable: totalPayable,
+            totalPayable: grossPayable,
           );
 
           if (isDesktop) {
@@ -152,20 +163,31 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
                         ),
                       ),
                       const SizedBox(width: 32),
-                      // Right Column: Sticky Fare Breakdown & Razorpay Action
+                      // Right Column: Sticky Fare Breakdown & Action
                       Expanded(
                         flex: 2,
                         child: Column(
                           children: [
                             _buildPromoEngineBox(rentalFare),
-                            const SizedBox(height: 20),
+                            const SizedBox(height: 16),
+                            if (wallet != null && wallet.totalBalance > 0)
+                              _buildWalletToggle(wallet, walletDeduction),
+                            const SizedBox(height: 16),
                             _buildFareBreakdownCard(
                               bike: bike,
                               originalRentalFare: rentalFare,
                               discountAmount: _discountAmount,
+                              walletDeduction: walletDeduction,
+                              grossPayable: grossPayable,
+                              netGatewayPayable: netGatewayPayable,
                               pricing: pricing,
-                              totalPayable: totalPayable,
-                              onConfirm: () => _handleConfirmBooking(bike, pricing, totalPayable),
+                              onConfirm: () => _handleConfirmBooking(
+                                bike: bike,
+                                pricing: pricing,
+                                grossPayable: grossPayable,
+                                walletDeduction: walletDeduction,
+                                netGatewayPayable: netGatewayPayable,
+                              ),
                             ),
                           ],
                         ),
@@ -193,13 +215,18 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
                       _buildHubsSection(stationsAsync),
                       const SizedBox(height: 20),
                       _buildPromoEngineBox(rentalFare),
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 16),
+                      if (wallet != null && wallet.totalBalance > 0)
+                        _buildWalletToggle(wallet, walletDeduction),
+                      const SizedBox(height: 16),
                       _buildFareBreakdownCard(
                         bike: bike,
                         originalRentalFare: rentalFare,
                         discountAmount: _discountAmount,
+                        walletDeduction: walletDeduction,
+                        grossPayable: grossPayable,
+                        netGatewayPayable: netGatewayPayable,
                         pricing: pricing,
-                        totalPayable: totalPayable,
                         isEmbedded: true,
                       ),
                     ],
@@ -215,14 +242,26 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
                 ),
                 child: SafeArea(
                   child: ElevatedButton(
-                    onPressed: _isSubmitting ? null : () => _handleConfirmBooking(bike, pricing, totalPayable),
+                    onPressed: _isSubmitting
+                        ? null
+                        : () => _handleConfirmBooking(
+                              bike: bike,
+                              pricing: pricing,
+                              grossPayable: grossPayable,
+                              walletDeduction: walletDeduction,
+                              netGatewayPayable: netGatewayPayable,
+                            ),
                     child: _isSubmitting
                         ? const SizedBox(
                             height: 20,
                             width: 20,
                             child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
                           )
-                        : Text('Confirm Booking • ${CurrencyFormatter.format(totalPayable)}'),
+                        : Text(
+                            netGatewayPayable == 0
+                                ? '1-Tap Pay with VeloCash • ${CurrencyFormatter.format(grossPayable)}'
+                                : 'Confirm Booking • ${CurrencyFormatter.format(netGatewayPayable)}',
+                          ),
                   ),
                 ),
               ),
@@ -258,7 +297,6 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
               onSelected: (_) {
                 setState(() {
                   _selectedHours = hours;
-                  // Re-evaluate discount if applied
                   if (_appliedPromo != null) {
                     final newBaseFare = hours >= 24
                         ? (hours / 24).ceil() * 499.0
@@ -301,7 +339,7 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
               DropdownButtonFormField<String>(
                 initialValue: _returnStationId,
                 decoration: const InputDecoration(
-                  labelText: 'Return Station (Any Bengaluru Hub)',
+                  labelText: 'Return Station (Any Hyderabad Hub)',
                   prefixIcon: Icon(Icons.pin_drop_rounded, color: AppColors.secondary),
                 ),
                 items: stations.map((s) => DropdownMenuItem(
@@ -409,6 +447,40 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
     );
   }
 
+  Widget _buildWalletToggle(Wallet wallet, double walletDeduction) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.primary.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.account_balance_wallet_rounded, color: AppColors.primary, size: 24),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Pay with VeloCash Balance', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                Text(
+                  'Available: ${CurrencyFormatter.format(wallet.totalBalance)} (Deducting ${CurrencyFormatter.format(walletDeduction)})',
+                  style: const TextStyle(color: AppColors.primaryDark, fontSize: 12, fontWeight: FontWeight.w600),
+                ),
+              ],
+            ),
+          ),
+          Switch(
+            value: _useWalletBalance,
+            activeThumbColor: AppColors.primary,
+            onChanged: (val) => setState(() => _useWalletBalance = val),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildKycNotice() {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -447,8 +519,10 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
     required Bike bike,
     required double originalRentalFare,
     required double discountAmount,
+    required double walletDeduction,
+    required double grossPayable,
+    required double netGatewayPayable,
     required PricingBreakdown pricing,
-    required double totalPayable,
     VoidCallback? onConfirm,
     bool isEmbedded = false,
   }) {
@@ -499,10 +573,26 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
             isHighlighted: true,
             subtitle: '100% refunded on vehicle return',
           ),
+          if (walletDeduction > 0) ...[
+            const SizedBox(height: 10),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'VeloCash Balance Applied',
+                  style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 13),
+                ),
+                Text(
+                  '- ${CurrencyFormatter.format(walletDeduction)}',
+                  style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 14),
+                ),
+              ],
+            ),
+          ],
           const Divider(height: 28),
           _FareRow(
-            label: 'Total Payable Now',
-            amount: totalPayable,
+            label: netGatewayPayable == 0 ? 'Total Covered by VeloCash' : 'Net Payable via Gateway',
+            amount: netGatewayPayable == 0 ? grossPayable : netGatewayPayable,
             isTotal: true,
           ),
           if (!isEmbedded && onConfirm != null) ...[
@@ -515,19 +605,20 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
                       width: 20,
                       child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
                     )
-                  : Text('Confirm Booking • ${CurrencyFormatter.format(totalPayable)}'),
+                  : Text(
+                      netGatewayPayable == 0
+                          ? '1-Tap Pay with VeloCash • ${CurrencyFormatter.format(grossPayable)}'
+                          : 'Confirm Booking • ${CurrencyFormatter.format(netGatewayPayable)}',
+                    ),
             ),
             const SizedBox(height: 12),
-            const Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.shield_outlined, size: 14, color: AppColors.textSecondaryLight),
-                SizedBox(width: 6),
-                Text(
-                  'Razorpay 256-bit Encrypted Checkout',
-                  style: TextStyle(fontSize: 11, color: AppColors.textSecondaryLight),
-                ),
-              ],
+            Center(
+              child: Text(
+                netGatewayPayable == 0
+                    ? '⚡ Instant Wallet Confirmation (No Payment Gateway Needed)'
+                    : '🔒 Razorpay 256-bit Encrypted Checkout',
+                style: const TextStyle(fontSize: 11, color: AppColors.textSecondaryLight),
+              ),
             ),
           ],
         ],
@@ -535,11 +626,13 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
     );
   }
 
-  Future<void> _handleConfirmBooking(
-    Bike bike,
-    PricingBreakdown pricing,
-    double totalPayable,
-  ) async {
+  Future<void> _handleConfirmBooking({
+    required Bike bike,
+    required PricingBreakdown pricing,
+    required double grossPayable,
+    required double walletDeduction,
+    required double netGatewayPayable,
+  }) async {
     var user = ref.read(authControllerProvider).value;
     if (user == null) {
       final loggedIn = await AuthModal.show(
@@ -593,32 +686,37 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
     try {
       final bookingRepo = ref.read(bookingRepositoryProvider);
       final promoRepo = ref.read(promoRepositoryProvider);
+      final walletRepo = ref.read(walletRepositoryProvider);
       final paymentService = ref.read(paymentServiceProvider);
       final emailService = ref.read(emailServiceProvider);
       final now = DateTime.now();
       final customerId = user?.id ?? 'usr_demo_customer';
 
-      // 1. Create Order via PaymentService
-      final order = await paymentService.createOrder(
-        bookingId: 'temp_${now.millisecondsSinceEpoch}',
-        amount: totalPayable,
-        customerPhone: user?.phoneNumber ?? '',
-        customerEmail: user?.email ?? 'customer@veloride.in',
-      );
+      String paymentRefId = 'wallet_full';
 
-      // 2. Perform Payment Verification (HMAC-SHA256)
-      final paymentVerification = PaymentVerification(
-        orderId: order.orderId,
-        paymentId: 'pay_${now.millisecondsSinceEpoch}',
-        signature: 'mock_valid_signature_hash',
-      );
-      final isPaid = await paymentService.verifyPayment(paymentVerification);
+      // 1. If there's a gateway payable amount, process Razorpay order
+      if (netGatewayPayable > 0) {
+        final order = await paymentService.createOrder(
+          bookingId: 'temp_${now.millisecondsSinceEpoch}',
+          amount: netGatewayPayable,
+          customerPhone: user?.phoneNumber ?? '',
+          customerEmail: user?.email ?? 'customer@veloride.in',
+        );
 
-      if (!isPaid) {
-        throw Exception('Payment verification failed. Please try another payment method.');
+        final paymentVerification = PaymentVerification(
+          orderId: order.orderId,
+          paymentId: 'pay_${now.millisecondsSinceEpoch}',
+          signature: 'mock_valid_signature_hash',
+        );
+        final isPaid = await paymentService.verifyPayment(paymentVerification);
+
+        if (!isPaid) {
+          throw Exception('Payment verification failed. Please try another payment method.');
+        }
+        paymentRefId = paymentVerification.paymentId;
       }
 
-      // 3. Finalize Booking in PostgreSQL
+      // 2. Finalize Booking in PostgreSQL
       final booking = await bookingRepo.createBooking(
         customerId: customerId,
         bikeId: bike.id,
@@ -628,6 +726,18 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
         endTime: now.add(Duration(hours: _selectedHours, minutes: 30)),
         pricing: pricing,
       );
+
+      // 3. Debit wallet if wallet deduction used
+      if (walletDeduction > 0) {
+        await walletRepo.debitWallet(
+          userId: customerId,
+          amount: walletDeduction,
+          referenceId: booking.bookingNumber,
+          description: 'VeloCash used for ride ${booking.bookingNumber}',
+        );
+        ref.invalidate(userWalletFutureProvider);
+        ref.invalidate(walletTransactionsFutureProvider);
+      }
 
       // 4. Record Promo Redemption if applied
       if (_appliedPromo != null) {
@@ -640,7 +750,7 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
           toEmail: user.email!,
           customerName: user.fullName,
           bookingNumber: booking.bookingNumber,
-          amountPaid: totalPayable,
+          amountPaid: grossPayable,
         );
       }
 
@@ -662,18 +772,23 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
               children: [
                 Text('Booking Ref: ${booking.bookingNumber}', style: const TextStyle(fontWeight: FontWeight.bold)),
                 const SizedBox(height: 6),
-                Text('Payment Ref: ${paymentVerification.paymentId}'),
+                Text('Payment Ref: $paymentRefId'),
                 const SizedBox(height: 6),
                 Text('Vehicle: ${bike.name} (${bike.registrationNumber})'),
                 const SizedBox(height: 6),
-                Text('Amount Paid: ${CurrencyFormatter.format(totalPayable)} (18% GST incl.)'),
+                Text('Total Paid: ${CurrencyFormatter.format(grossPayable)}'),
+                if (walletDeduction > 0) ...[
+                  const SizedBox(height: 6),
+                  Text('Paid from VeloCash: ${CurrencyFormatter.format(walletDeduction)}',
+                      style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold)),
+                ],
                 if (_discountAmount > 0) ...[
                   const SizedBox(height: 6),
                   Text('Coupon Savings: ${CurrencyFormatter.format(_discountAmount)} (${_appliedPromo?.code})',
                       style: const TextStyle(color: AppColors.success, fontWeight: FontWeight.bold)),
                 ],
                 const SizedBox(height: 6),
-                Text('Deposit Held: ${CurrencyFormatter.format(bike.securityDeposit)} (100% Refundable)'),
+                Text('Deposit Held: ${CurrencyFormatter.format(bike.securityDeposit)} (100% Refundable to VeloCash)'),
                 const SizedBox(height: 12),
                 const Text(
                   'Your reservation is active. Please proceed to the hub for instant keyless QR vehicle handover.',

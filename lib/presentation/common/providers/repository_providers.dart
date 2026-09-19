@@ -6,16 +6,19 @@ import '../../../data/repositories/mock_booking_repository.dart';
 import '../../../data/repositories/mock_promo_repository.dart';
 import '../../../data/repositories/mock_station_repository.dart';
 import '../../../data/repositories/mock_subscription_repository.dart';
+import '../../../data/repositories/mock_wallet_repository.dart';
 import '../../../data/repositories/supabase_bike_repository.dart';
 import '../../../data/repositories/supabase_booking_repository.dart';
 import '../../../data/repositories/supabase_promo_repository.dart';
 import '../../../data/repositories/supabase_station_repository.dart';
 import '../../../data/repositories/supabase_subscription_repository.dart';
+import '../../../data/repositories/supabase_wallet_repository.dart';
 import '../../../domain/repositories/bike_repository.dart';
 import '../../../domain/repositories/booking_repository.dart';
 import '../../../domain/repositories/promo_repository.dart';
 import '../../../domain/repositories/station_repository.dart';
 import '../../../domain/repositories/subscription_repository.dart';
+import '../../../domain/repositories/wallet_repository.dart';
 import '../../../services/maps/map_service.dart';
 import '../../../services/maps/mock_map_service.dart';
 
@@ -63,6 +66,14 @@ final promoRepositoryProvider = Provider<PromoRepository>((ref) {
     return SupabasePromoRepository(client);
   }
   return MockPromoRepository();
+});
+
+final walletRepositoryProvider = Provider<WalletRepository>((ref) {
+  final client = SupabaseConfig.client;
+  if (client != null) {
+    return SupabaseWalletRepository(client);
+  }
+  return MockWalletRepository();
 });
 
 final mapServiceProvider = Provider<MapService>((ref) {

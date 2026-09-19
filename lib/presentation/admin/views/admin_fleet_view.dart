@@ -49,7 +49,7 @@ class AdminFleetView extends ConsumerWidget {
                       _MetricCard(
                         title: 'Total Fleet',
                         value: '$total',
-                        subtitle: 'Bengaluru Hubs',
+                        subtitle: 'Hyderabad EV Hubs',
                         icon: Icons.two_wheeler_rounded,
                         color: AppColors.primary,
                         width: isWide ? (constraints.maxWidth - 48) / 4 : (constraints.maxWidth - 16) / 2,

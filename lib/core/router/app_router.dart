@@ -9,6 +9,7 @@ import '../../presentation/customer/profile/profile_screen.dart';
 import '../../presentation/customer/shell/app_shell.dart';
 import '../../presentation/customer/subscriptions/subscription_checkout_screen.dart';
 import '../../presentation/customer/subscriptions/subscription_plans_screen.dart';
+import '../../presentation/customer/wallet/wallet_screen.dart';
 
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
 final GlobalKey<NavigatorState> _exploreNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'explore');
@@ -24,6 +25,11 @@ final appRouter = GoRouter(
       path: '/admin',
       parentNavigatorKey: _rootNavigatorKey,
       builder: (context, state) => const AdminPortalScreen(),
+    ),
+    GoRoute(
+      path: '/wallet',
+      parentNavigatorKey: _rootNavigatorKey,
+      builder: (context, state) => const WalletScreen(),
     ),
     GoRoute(
       path: '/subscription-checkout/:planId',

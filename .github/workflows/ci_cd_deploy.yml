@@ -1,0 +1,43 @@
+name: VeloRide India CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  test_and_build:
+    name: 🧪 Analyze, Test & Compile
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: 🎯 Setup Flutter SDK
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: 📦 Install Dependencies
+        run: flutter pub get
+
+      - name: 🔍 Run Static Code Analysis
+        run: flutter analyze
+
+      - name: 🧪 Execute Automated Test Suite
+        run: flutter test --coverage
+
+      - name: ⚙️ Verify Cloud Infrastructure Configuration
+        run: dart run scripts/verify_cloud_env.dart
+
+      - name: 🚀 Compile Production Web Distribution
+        run: flutter build web --release --pwa-strategy=none
+
+      - name: 📤 Archive Web Distribution Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: veloride-web-release
+          path: build/web/

@@ -84,9 +84,9 @@ void main() {
     });
 
     test('validatePromo rejects coupon with mismatched applicable type', () async {
-      // BLRCOMMUTE is for rentals only
+      // HYDCOMMUTE is for rentals only
       final result = await promoRepo.validatePromo(
-        code: 'BLRCOMMUTE',
+        code: 'HYDCOMMUTE',
         orderAmount: 6000.0,
         orderType: PromoApplicableType.subscription,
       );

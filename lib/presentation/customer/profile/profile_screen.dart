@@ -3,8 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/utils/currency_formatter.dart';
 import '../../../domain/entities/user_profile.dart';
 import '../../common/providers/auth_state_provider.dart';
+import '../../common/providers/wallet_providers.dart';
 import '../auth/auth_modal.dart';
 import 'kyc_submission_screen.dart';
 
@@ -14,6 +16,7 @@ class ProfileScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(authControllerProvider).value;
+    final walletAsync = ref.watch(userWalletFutureProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -99,10 +102,142 @@ class ProfileScreen extends ConsumerWidget {
             ),
           ],
 
+          const SizedBox(height: 20),
+
+          // VeloCash Digital Wallet Card
+          Container(
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [AppColors.primaryDark, Color(0xFF003828)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(18),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.primaryDark.withValues(alpha: 0.25),
+                  blurRadius: 16,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Row(
+                      children: [
+                        Icon(Icons.account_balance_wallet_rounded, color: AppColors.secondary, size: 22),
+                        SizedBox(width: 8),
+                        Text(
+                          'VeloCash Digital Wallet',
+                          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
+                        ),
+                      ],
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Text(
+                        '1-Tap Checkout Active',
+                        style: TextStyle(color: AppColors.secondary, fontSize: 11, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                walletAsync.when(
+                  data: (wallet) => Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Available Balance',
+                            style: TextStyle(color: Colors.white70, fontSize: 12),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            CurrencyFormatter.format(wallet?.totalBalance ?? 0.0),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w900,
+                              fontSize: 26,
+                              letterSpacing: -0.5,
+                            ),
+                          ),
+                          Text(
+                            'Main: ${CurrencyFormatter.format(wallet?.mainBalance ?? 0.0)} • Bonus: ${CurrencyFormatter.format(wallet?.bonusBalance ?? 0.0)}',
+                            style: const TextStyle(color: AppColors.secondary, fontSize: 11, fontWeight: FontWeight.w600),
+                          ),
+                        ],
+                      ),
+                      ElevatedButton.icon(
+                        icon: const Icon(Icons.add_rounded, size: 16, color: AppColors.primaryDark),
+                        label: const Text('Manage', style: TextStyle(color: AppColors.primaryDark, fontWeight: FontWeight.bold)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.secondary,
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        onPressed: () => context.push('/wallet'),
+                      ),
+                    ],
+                  ),
+                  loading: () => const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 8),
+                    child: CircularProgressIndicator(color: Colors.white),
+                  ),
+                  error: (e, s) => Text('Error loading wallet: $e', style: const TextStyle(color: Colors.white70)),
+                ),
+                const SizedBox(height: 14),
+                InkWell(
+                  onTap: () => context.push('/wallet'),
+                  borderRadius: BorderRadius.circular(10),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                    ),
+                    child: const Row(
+                      children: [
+                        Icon(Icons.card_giftcard_rounded, color: AppColors.secondary, size: 18),
+                        SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Refer friends & get ₹100 VeloCash bonus on each referral',
+                            style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w500),
+                          ),
+                        ),
+                        Icon(Icons.chevron_right_rounded, color: Colors.white70, size: 18),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
           const SizedBox(height: 24),
 
           const Text('Rental & Identity', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
           const SizedBox(height: 12),
+          _SettingsTile(
+            icon: Icons.account_balance_wallet_rounded,
+            title: 'VeloCash Wallet & Referral Rewards',
+            subtitle: 'Add money with bonus cashback, view ledger & invite friends',
+            trailingWidget: const Icon(Icons.arrow_forward_ios, size: 14, color: AppColors.textSecondaryLight),
+            onTap: () => context.push('/wallet'),
+          ),
           _SettingsTile(
             icon: Icons.badge_outlined,
             title: 'Driving License Details (KYC)',
@@ -123,10 +258,10 @@ class ProfileScreen extends ConsumerWidget {
             },
           ),
           _SettingsTile(
-            icon: Icons.account_balance_wallet_outlined,
-            title: 'Security Deposit Account',
-            subtitle: 'Refunds processed to source payment method via Razorpay',
-            onTap: () {},
+            icon: Icons.security_rounded,
+            title: 'Security Deposit Refunds',
+            subtitle: 'Instant refund credited back to VeloCash or source bank account',
+            onTap: () => context.push('/wallet'),
           ),
           _SettingsTile(
             icon: Icons.description_outlined,

@@ -119,7 +119,7 @@ class ExploreScreen extends ConsumerWidget {
                           );
                         },
                         loading: () => const Text('Locating hubs...', style: TextStyle(fontSize: 12)),
-                        error: (e, s) => const Text('Bengaluru', style: TextStyle(fontSize: 12)),
+                        error: (e, s) => const Text('Hyderabad', style: TextStyle(fontSize: 12)),
                       ),
                     ],
                   ),
@@ -172,7 +172,7 @@ class ExploreScreen extends ConsumerWidget {
                               border: Border.all(color: AppColors.secondaryLight.withValues(alpha: 0.4)),
                             ),
                             child: const Text(
-                              '⚡ BENGALURU SMART MOBILITY',
+                              '⚡ HYDERABAD SMART EV MOBILITY',
                               style: TextStyle(
                                 color: AppColors.secondaryLight,
                                 fontSize: 11,
@@ -183,7 +183,7 @@ class ExploreScreen extends ConsumerWidget {
                           ),
                           const SizedBox(height: 12),
                           const Text(
-                            'Rent Premium Two-Wheelers\nHourly, Daily or Monthly.',
+                            'Rent Smart Electric Two-Wheelers\nHourly, Daily or Monthly.',
                             style: TextStyle(
                               color: Colors.white,
                               fontSize: 26,
@@ -194,7 +194,7 @@ class ExploreScreen extends ConsumerWidget {
                           ),
                           const SizedBox(height: 10),
                           const Text(
-                            'Top EV Scooters & Highway Cruisers with instant Two-Wheeler DL verification and keyless hub pickup.',
+                            '100% Electric Connected Fleet across Miyapur Metro & Kondapur HITEC City Hubs. Petrol rentals coming soon.',
                             style: TextStyle(color: Color(0xFFCCFBF1), fontSize: 14),
                           ),
                           const SizedBox(height: 18),
@@ -320,7 +320,7 @@ class ExploreScreen extends ConsumerWidget {
                                   children: [
                                     Icon(Icons.location_on_rounded, color: AppColors.primary, size: 20),
                                     SizedBox(width: 8),
-                                    Text('All Pickup Hubs (Bengaluru)', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                                    Text('All Pickup Hubs (Hyderabad)', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
                                   ],
                                 ),
                               ),

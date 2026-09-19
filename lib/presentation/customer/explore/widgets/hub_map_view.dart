@@ -105,7 +105,7 @@ class _HubMapViewState extends ConsumerState<HubMapView> {
                         Icon(Icons.near_me_rounded, color: AppColors.primaryLight, size: 14),
                         SizedBox(width: 6),
                         Text(
-                          'Bengaluru Mobility Grid • Live Hubs',
+                          'Hyderabad EV Grid • Miyapur & Kondapur Hubs',
                           style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600),
                         ),
                       ],

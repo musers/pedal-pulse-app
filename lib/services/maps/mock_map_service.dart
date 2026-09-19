@@ -2,17 +2,17 @@ import 'dart:math';
 import 'map_service.dart';
 
 class MockMapService implements MapService {
-  // Default user location: Koramangala, Bengaluru
-  static const GeoLocation defaultBengaluruUserLocation = GeoLocation(
-    latitude: 12.9345,
-    longitude: 77.6101,
-    address: 'Koramangala 4th Block, Bengaluru, Karnataka 560034',
+  // Default user location: Kondapur / HITEC City, Hyderabad
+  static const GeoLocation defaultHyderabadUserLocation = GeoLocation(
+    latitude: 17.4646,
+    longitude: 78.3667,
+    address: 'Botanical Garden Rd, Kondapur, Hyderabad, Telangana 500084',
   );
 
   final GeoLocation _currentLocation;
 
   MockMapService({GeoLocation? initialLocation})
-      : _currentLocation = initialLocation ?? defaultBengaluruUserLocation;
+      : _currentLocation = initialLocation ?? defaultHyderabadUserLocation;
 
   @override
   Future<GeoLocation> getCurrentLocation() async {
@@ -41,16 +41,12 @@ class MockMapService implements MapService {
   @override
   Future<String> reverseGeocode(double latitude, double longitude) async {
     await Future.delayed(const Duration(milliseconds: 100));
-    if ((latitude - 12.9352).abs() < 0.01) {
-      return 'Koramangala 5th Block, Bengaluru';
-    } else if ((latitude - 12.9784).abs() < 0.01) {
-      return 'Indiranagar 100ft Road, Bengaluru';
-    } else if ((latitude - 12.9116).abs() < 0.01) {
-      return 'HSR Layout Sector 1, Bengaluru';
-    } else if ((latitude - 12.9863).abs() < 0.01) {
-      return 'Whitefield ITPL Main Rd, Bengaluru';
+    if ((latitude - 17.4968).abs() < 0.01) {
+      return 'Miyapur Metro Station Hub, Hyderabad';
+    } else if ((latitude - 17.4646).abs() < 0.01) {
+      return 'Kondapur HITEC City Hub, Hyderabad';
     }
-    return 'Bengaluru Urban, Karnataka, India';
+    return 'Hyderabad Urban, Telangana, India';
   }
 
   @override
@@ -58,11 +54,11 @@ class MockMapService implements MapService {
     await Future.delayed(const Duration(milliseconds: 150));
     final q = query.toLowerCase();
     final allKnown = [
-      const GeoLocation(latitude: 12.9352, longitude: 77.6245, address: 'Koramangala 5th Block Hub'),
-      const GeoLocation(latitude: 12.9784, longitude: 77.6408, address: 'Indiranagar 100ft Road Hub'),
-      const GeoLocation(latitude: 12.9116, longitude: 77.6389, address: 'HSR Layout Sector 1 Hub'),
-      const GeoLocation(latitude: 12.9863, longitude: 77.7314, address: 'Whitefield ITPL Hub'),
-      const GeoLocation(latitude: 12.9716, longitude: 77.5946, address: 'MG Road Metro Station'),
+      const GeoLocation(latitude: 17.4968, longitude: 78.3582, address: 'Miyapur Metro Station Hub, Hyderabad'),
+      const GeoLocation(latitude: 17.4646, longitude: 78.3667, address: 'Kondapur HITEC City Hub, Hyderabad'),
+      const GeoLocation(latitude: 17.4483, longitude: 78.3915, address: 'Cyber Towers, HITEC City, Hyderabad'),
+      const GeoLocation(latitude: 17.4401, longitude: 78.3489, address: 'Gachibowli Financial District, Hyderabad'),
+      const GeoLocation(latitude: 17.4933, longitude: 78.3914, address: 'KPHB Colony Metro Station, Hyderabad'),
     ];
 
     return allKnown

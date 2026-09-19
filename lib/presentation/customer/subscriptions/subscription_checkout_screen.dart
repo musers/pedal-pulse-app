@@ -6,13 +6,16 @@ import '../../../core/utils/currency_formatter.dart';
 import '../../../core/utils/responsive_layout.dart';
 import '../../../domain/entities/promo_code.dart';
 import '../../../domain/entities/subscription_plan.dart';
+import '../../../domain/entities/wallet.dart';
 import '../../../services/payment/payment_service.dart';
 import '../../common/providers/auth_state_provider.dart';
 import '../../common/providers/notification_providers.dart';
 import '../../common/providers/payment_providers.dart';
 import '../../common/providers/repository_providers.dart';
+import '../../common/providers/wallet_providers.dart';
 import '../auth/auth_modal.dart';
 import '../explore/explore_screen.dart';
+import '../my_bookings/my_bookings_screen.dart';
 import '../profile/kyc_submission_screen.dart';
 import 'subscription_plans_screen.dart';
 
@@ -29,6 +32,7 @@ class _SubscriptionCheckoutScreenState extends ConsumerState<SubscriptionCheckou
   final _couponController = TextEditingController();
   String? _pickupStationId;
   bool _autoRenew = true;
+  bool _useWalletBalance = true;
   bool _isSubmitting = false;
 
   PromoCode? _appliedPromo;
@@ -87,6 +91,7 @@ class _SubscriptionCheckoutScreenState extends ConsumerState<SubscriptionCheckou
   Widget build(BuildContext context) {
     final plansAsync = ref.watch(subscriptionPlansFutureProvider);
     final stationsAsync = ref.watch(stationsFutureProvider);
+    final walletAsync = ref.watch(userWalletFutureProvider);
     final isDesktop = ResponsiveLayout.isDesktop(context);
 
     return Scaffold(
@@ -109,7 +114,14 @@ class _SubscriptionCheckoutScreenState extends ConsumerState<SubscriptionCheckou
           final baseFare = plan.price;
           final gstAmount = baseFare * 0.18;
           final subtotal = (baseFare + gstAmount) - _discountAmount;
-          final totalPayable = (subtotal > 0 ? subtotal : 0.0) + plan.securityDeposit;
+          final grossPayable = (subtotal > 0 ? subtotal : 0.0) + plan.securityDeposit;
+
+          final wallet = walletAsync.value;
+          final double availableWallet = wallet?.totalBalance ?? 0.0;
+          final double walletDeduction = _useWalletBalance
+              ? (availableWallet > grossPayable ? grossPayable : availableWallet)
+              : 0.0;
+          final double netGatewayPayable = (grossPayable - walletDeduction).clamp(0.0, double.infinity);
 
           if (isDesktop) {
             return Center(
@@ -131,6 +143,10 @@ class _SubscriptionCheckoutScreenState extends ConsumerState<SubscriptionCheckou
                               const SizedBox(height: 24),
                               _buildDeliveryHubPicker(stationsAsync),
                               const SizedBox(height: 24),
+                              if (wallet != null && wallet.totalBalance > 0) ...[
+                                _buildWalletToggle(wallet, walletDeduction),
+                                const SizedBox(height: 24),
+                              ],
                               _buildAutoRenewToggle(),
                               const SizedBox(height: 24),
                               _buildKycNotice(),
@@ -147,7 +163,9 @@ class _SubscriptionCheckoutScreenState extends ConsumerState<SubscriptionCheckou
                           plan: plan,
                           baseFare: baseFare,
                           gstAmount: gstAmount,
-                          totalPayable: totalPayable,
+                          grossPayable: grossPayable,
+                          walletDeduction: walletDeduction,
+                          netGatewayPayable: netGatewayPayable,
                         ),
                       ),
                     ],
@@ -170,9 +188,20 @@ class _SubscriptionCheckoutScreenState extends ConsumerState<SubscriptionCheckou
                       const SizedBox(height: 20),
                       _buildDeliveryHubPicker(stationsAsync),
                       const SizedBox(height: 20),
+                      if (wallet != null && wallet.totalBalance > 0) ...[
+                        _buildWalletToggle(wallet, walletDeduction),
+                        const SizedBox(height: 20),
+                      ],
                       _buildPromoEngineBox(baseFare),
                       const SizedBox(height: 20),
-                      _buildFareBreakdown(plan, baseFare, gstAmount, totalPayable),
+                      _buildFareBreakdown(
+                        plan: plan,
+                        baseFare: baseFare,
+                        gstAmount: gstAmount,
+                        grossPayable: grossPayable,
+                        walletDeduction: walletDeduction,
+                        netGatewayPayable: netGatewayPayable,
+                      ),
                     ],
                   ),
                 ),
@@ -185,10 +214,21 @@ class _SubscriptionCheckoutScreenState extends ConsumerState<SubscriptionCheckou
                 ),
                 child: SafeArea(
                   child: ElevatedButton(
-                    onPressed: _isSubmitting ? null : () => _handleConfirmSubscription(plan, totalPayable),
+                    onPressed: _isSubmitting
+                        ? null
+                        : () => _handleConfirmSubscription(
+                              plan: plan,
+                              grossPayable: grossPayable,
+                              walletDeduction: walletDeduction,
+                              netGatewayPayable: netGatewayPayable,
+                            ),
                     child: _isSubmitting
                         ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                        : Text('Confirm Subscription • ${CurrencyFormatter.format(totalPayable)}'),
+                        : Text(
+                            netGatewayPayable == 0
+                                ? '1-Tap Pay with VeloCash • ${CurrencyFormatter.format(grossPayable)}'
+                                : 'Confirm Subscription • ${CurrencyFormatter.format(netGatewayPayable)}',
+                          ),
                   ),
                 ),
               ),
@@ -210,7 +250,7 @@ class _SubscriptionCheckoutScreenState extends ConsumerState<SubscriptionCheckou
           const SizedBox(height: 12),
           DropdownButtonFormField<String>(
             initialValue: _pickupStationId,
-            hint: const Text('Select Nearest Bengaluru Hub / Delivery Node'),
+            hint: const Text('Select Nearest Hyderabad Hub (Miyapur / Kondapur)'),
             decoration: const InputDecoration(
               prefixIcon: Icon(Icons.location_city_rounded, color: AppColors.primary),
             ),
@@ -224,6 +264,40 @@ class _SubscriptionCheckoutScreenState extends ConsumerState<SubscriptionCheckou
       ),
       loading: () => const CircularProgressIndicator(),
       error: (e, s) => const SizedBox(),
+    );
+  }
+
+  Widget _buildWalletToggle(Wallet wallet, double walletDeduction) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.primary.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.account_balance_wallet_rounded, color: AppColors.primary, size: 24),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Pay with VeloCash Balance', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                Text(
+                  'Available: ${CurrencyFormatter.format(wallet.totalBalance)} (Deducting ${CurrencyFormatter.format(walletDeduction)})',
+                  style: const TextStyle(color: AppColors.primaryDark, fontSize: 12, fontWeight: FontWeight.w600),
+                ),
+              ],
+            ),
+          ),
+          Switch(
+            value: _useWalletBalance,
+            activeThumbColor: AppColors.primary,
+            onChanged: (val) => setState(() => _useWalletBalance = val),
+          ),
+        ],
+      ),
     );
   }
 
@@ -282,7 +356,7 @@ class _SubscriptionCheckoutScreenState extends ConsumerState<SubscriptionCheckou
                 ),
                 SizedBox(height: 4),
                 Text(
-                  'Your subscription includes 100% free scheduled maintenance, roadside breakdown rescue, and free replacement vehicles within 2 hours in Bengaluru.',
+                  'Your subscription includes 100% free scheduled maintenance, roadside breakdown rescue, and free replacement vehicles within 2 hours in Hyderabad.',
                   style: TextStyle(color: AppColors.textSecondaryLight, fontSize: 12, height: 1.3),
                 ),
               ],
@@ -381,12 +455,14 @@ class _SubscriptionCheckoutScreenState extends ConsumerState<SubscriptionCheckou
     );
   }
 
-  Widget _buildFareBreakdown(
-    SubscriptionPlan plan,
-    double baseFare,
-    double gstAmount,
-    double totalPayable,
-  ) {
+  Widget _buildFareBreakdown({
+    required SubscriptionPlan plan,
+    required double baseFare,
+    required double gstAmount,
+    required double grossPayable,
+    required double walletDeduction,
+    required double netGatewayPayable,
+  }) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -424,13 +500,32 @@ class _SubscriptionCheckoutScreenState extends ConsumerState<SubscriptionCheckou
             amount: plan.securityDeposit,
             isDeposit: true,
           ),
+          if (walletDeduction > 0) ...[
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'VeloCash Balance Applied',
+                  style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 13),
+                ),
+                Text(
+                  '- ${CurrencyFormatter.format(walletDeduction)}',
+                  style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 14),
+                ),
+              ],
+            ),
+          ],
           const Divider(height: 24),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('Total Payable Now', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
               Text(
-                CurrencyFormatter.format(totalPayable),
+                netGatewayPayable == 0 ? 'Total Covered by VeloCash' : 'Net Payable via Gateway',
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+              ),
+              Text(
+                CurrencyFormatter.format(netGatewayPayable == 0 ? grossPayable : netGatewayPayable),
                 style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 20, color: AppColors.primary),
               ),
             ],
@@ -444,7 +539,9 @@ class _SubscriptionCheckoutScreenState extends ConsumerState<SubscriptionCheckou
     required SubscriptionPlan plan,
     required double baseFare,
     required double gstAmount,
-    required double totalPayable,
+    required double grossPayable,
+    required double walletDeduction,
+    required double netGatewayPayable,
   }) {
     return Container(
       padding: const EdgeInsets.all(24),
@@ -465,19 +562,39 @@ class _SubscriptionCheckoutScreenState extends ConsumerState<SubscriptionCheckou
         children: [
           _buildPromoEngineBox(baseFare),
           const SizedBox(height: 20),
-          _buildFareBreakdown(plan, baseFare, gstAmount, totalPayable),
+          _buildFareBreakdown(
+            plan: plan,
+            baseFare: baseFare,
+            gstAmount: gstAmount,
+            grossPayable: grossPayable,
+            walletDeduction: walletDeduction,
+            netGatewayPayable: netGatewayPayable,
+          ),
           const SizedBox(height: 24),
           ElevatedButton(
-            onPressed: _isSubmitting ? null : () => _handleConfirmSubscription(plan, totalPayable),
+            onPressed: _isSubmitting
+                ? null
+                : () => _handleConfirmSubscription(
+                      plan: plan,
+                      grossPayable: grossPayable,
+                      walletDeduction: walletDeduction,
+                      netGatewayPayable: netGatewayPayable,
+                    ),
             child: _isSubmitting
                 ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                : Text('Confirm Subscription • ${CurrencyFormatter.format(totalPayable)}'),
+                : Text(
+                    netGatewayPayable == 0
+                        ? '1-Tap Pay with VeloCash • ${CurrencyFormatter.format(grossPayable)}'
+                        : 'Confirm Subscription • ${CurrencyFormatter.format(netGatewayPayable)}',
+                  ),
           ),
           const SizedBox(height: 12),
-          const Center(
+          Center(
             child: Text(
-              '🔒 Razorpay 256-bit Encrypted Checkout',
-              style: TextStyle(fontSize: 11, color: AppColors.textSecondaryLight),
+              netGatewayPayable == 0
+                  ? '⚡ Instant Wallet Confirmation (No Gateway Needed)'
+                  : '🔒 Razorpay 256-bit Encrypted Checkout',
+              style: const TextStyle(fontSize: 11, color: AppColors.textSecondaryLight),
             ),
           ),
         ],
@@ -485,7 +602,12 @@ class _SubscriptionCheckoutScreenState extends ConsumerState<SubscriptionCheckou
     );
   }
 
-  Future<void> _handleConfirmSubscription(SubscriptionPlan plan, double totalPayable) async {
+  Future<void> _handleConfirmSubscription({
+    required SubscriptionPlan plan,
+    required double grossPayable,
+    required double walletDeduction,
+    required double netGatewayPayable,
+  }) async {
     var user = ref.read(authControllerProvider).value;
     if (user == null) {
       final loggedIn = await AuthModal.show(context, redirectTitle: 'Sign in to subscribe');
@@ -520,54 +642,73 @@ class _SubscriptionCheckoutScreenState extends ConsumerState<SubscriptionCheckou
     try {
       final subRepo = ref.read(subscriptionRepositoryProvider);
       final promoRepo = ref.read(promoRepositoryProvider);
+      final walletRepo = ref.read(walletRepositoryProvider);
       final paymentService = ref.read(paymentServiceProvider);
       final emailService = ref.read(emailServiceProvider);
       final now = DateTime.now();
+      final customerId = user?.id ?? 'usr_demo_customer';
 
-      // 1. Payment Order Creation
-      final order = await paymentService.createOrder(
-        bookingId: 'sub_${now.millisecondsSinceEpoch}',
-        amount: totalPayable,
-        customerPhone: user?.phoneNumber ?? '',
-        customerEmail: user?.email ?? 'subscriber@veloride.in',
-      );
+      // 1. Payment Order Creation (if gateway payable > 0)
+      if (netGatewayPayable > 0) {
+        final order = await paymentService.createOrder(
+          bookingId: 'sub_${now.millisecondsSinceEpoch}',
+          amount: netGatewayPayable,
+          customerPhone: user?.phoneNumber ?? '',
+          customerEmail: user?.email ?? 'subscriber@veloride.in',
+        );
 
-      // 2. Cryptographic Verification
-      final paymentVerification = PaymentVerification(
-        orderId: order.orderId,
-        paymentId: 'pay_sub_${now.millisecondsSinceEpoch}',
-        signature: 'mock_valid_signature_hash',
-      );
-      final isPaid = await paymentService.verifyPayment(paymentVerification);
+        // 2. Cryptographic Verification
+        final paymentVerification = PaymentVerification(
+          orderId: order.orderId,
+          paymentId: 'pay_sub_${now.millisecondsSinceEpoch}',
+          signature: 'mock_valid_signature_hash',
+        );
+        final isPaid = await paymentService.verifyPayment(paymentVerification);
 
-      if (!isPaid) throw Exception('Payment failed. Please try again.');
+        if (!isPaid) throw Exception('Payment failed. Please try again.');
+      }
 
       // 3. Create Subscription Contract
       final subscription = await subRepo.createSubscription(
-        userId: user?.id ?? 'usr_demo_customer',
+        userId: customerId,
         planId: plan.id,
         planName: plan.name,
-        pickupStationId: _pickupStationId ?? 'st_indiranagar',
+        pickupStationId: _pickupStationId ?? 'st_kondapur',
         durationDays: plan.durationDays,
-        amountPaid: totalPayable,
+        amountPaid: grossPayable,
         securityDeposit: plan.securityDeposit,
         promoCodeUsed: _appliedPromo?.code,
         discountApplied: _discountAmount,
         autoRenew: _autoRenew,
       );
 
-      // 4. Record Promo Redemption if applied
+      // 4. Debit wallet if wallet balance deduction used
+      if (walletDeduction > 0) {
+        await walletRepo.debitWallet(
+          userId: customerId,
+          amount: walletDeduction,
+          referenceId: subscription.subscriptionNumber,
+          description: 'VeloCash used for pass ${subscription.subscriptionNumber}',
+        );
+        ref.invalidate(userWalletFutureProvider);
+        ref.invalidate(walletTransactionsFutureProvider);
+      }
+
+      // 5. Record Promo Redemption if applied
       if (_appliedPromo != null) {
         await promoRepo.recordPromoRedemption(_appliedPromo!.code);
       }
 
-      // 5. Send Tax Receipt
+      // 6. Invalidate user subscriptions provider
+      ref.invalidate(userSubscriptionsFutureProvider);
+
+      // 7. Send Tax Receipt
       if (user?.email != null && user!.email!.isNotEmpty) {
         await emailService.sendBookingReceipt(
           toEmail: user.email!,
           customerName: user.fullName,
           bookingNumber: subscription.subscriptionNumber,
-          amountPaid: totalPayable,
+          amountPaid: grossPayable,
         );
       }
 
@@ -591,7 +732,12 @@ class _SubscriptionCheckoutScreenState extends ConsumerState<SubscriptionCheckou
                 const SizedBox(height: 6),
                 Text('Plan: ${plan.name} (${plan.durationDays} Days)'),
                 const SizedBox(height: 6),
-                Text('Total Paid: ${CurrencyFormatter.format(totalPayable)}'),
+                Text('Total Paid: ${CurrencyFormatter.format(grossPayable)}'),
+                if (walletDeduction > 0) ...[
+                  const SizedBox(height: 6),
+                  Text('VeloCash Paid: ${CurrencyFormatter.format(walletDeduction)}',
+                      style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold)),
+                ],
                 if (_discountAmount > 0) ...[
                   const SizedBox(height: 6),
                   Text('Promo Savings: ${CurrencyFormatter.format(_discountAmount)} (${_appliedPromo?.code})',

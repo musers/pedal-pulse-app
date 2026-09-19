@@ -87,7 +87,7 @@ class _AdminPortalScreenState extends ConsumerState<AdminPortalScreen> {
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                 ),
                 Text(
-                  'Admin: ${user?.fullName ?? "Manager"} • Bengaluru Hub',
+                  'Admin: ${user?.fullName ?? "Manager"} • Hyderabad Hubs',
                   style: const TextStyle(fontSize: 12, color: AppColors.textSecondaryLight),
                 ),
               ],

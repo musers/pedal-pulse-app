@@ -8,11 +8,11 @@ class GoogleMapService implements MapService {
 
   @override
   Future<GeoLocation> getCurrentLocation() async {
-    // Returns user's detected GPS coordinates (defaulting to Bengaluru central)
+    // Returns user's detected GPS coordinates (defaulting to Hyderabad central)
     return const GeoLocation(
-      latitude: 12.9352,
-      longitude: 77.6245,
-      address: 'Koramangala, Bengaluru, Karnataka',
+      latitude: 17.4646,
+      longitude: 78.3667,
+      address: 'Kondapur, Hyderabad, Telangana',
     );
   }
 
@@ -35,16 +35,16 @@ class GoogleMapService implements MapService {
 
   @override
   Future<String> reverseGeocode(double latitude, double longitude) async {
-    return 'Bengaluru, Karnataka, India';
+    return 'Hyderabad, Telangana, India';
   }
 
   @override
   Future<List<GeoLocation>> searchPlaces(String query) async {
     return [
       GeoLocation(
-        latitude: 12.9352,
-        longitude: 77.6245,
-        address: '$query, Bengaluru',
+        latitude: 17.4646,
+        longitude: 78.3667,
+        address: '$query, Hyderabad',
       ),
     ];
   }

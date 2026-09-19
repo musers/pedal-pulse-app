@@ -73,7 +73,7 @@ class SubscriptionPlansScreen extends ConsumerWidget {
                             ),
                             const SizedBox(height: 8),
                             const Text(
-                              'All passes include comprehensive insurance, free doorstep servicing, sanitized helmets, and swappable battery access across Bengaluru.',
+                              'All passes include comprehensive insurance, free doorstep servicing, sanitized helmets, and fast charging access across Hyderabad.',
                               style: TextStyle(color: Color(0xFFCCFBF1), fontSize: 13),
                             ),
                           ],

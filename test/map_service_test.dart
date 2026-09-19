@@ -10,38 +10,38 @@ void main() {
       mapService = MockMapService();
     });
 
-    test('getCurrentLocation returns default Bengaluru coordinates', () async {
+    test('getCurrentLocation returns default Hyderabad coordinates', () async {
       final loc = await mapService.getCurrentLocation();
-      expect(loc.latitude, closeTo(12.9345, 0.001));
-      expect(loc.longitude, closeTo(77.6101, 0.001));
-      expect(loc.address, contains('Bengaluru'));
+      expect(loc.latitude, closeTo(17.4646, 0.001));
+      expect(loc.longitude, closeTo(78.3667, 0.001));
+      expect(loc.address, contains('Hyderabad'));
     });
 
-    test('calculateDistanceKm computes accurate Haversine distance between Koramangala and Indiranagar', () async {
-      const koramangala = GeoLocation(latitude: 12.9352, longitude: 77.6245);
-      const indiranagar = GeoLocation(latitude: 12.9784, longitude: 77.6408);
+    test('calculateDistanceKm computes accurate Haversine distance between Kondapur and Miyapur', () async {
+      const kondapur = GeoLocation(latitude: 17.4646, longitude: 78.3667);
+      const miyapur = GeoLocation(latitude: 17.4968, longitude: 78.3582);
 
-      final distance = await mapService.calculateDistanceKm(koramangala, indiranagar);
-      // Realistic road/aerial distance ~5.08 km
-      expect(distance, greaterThan(4.5));
-      expect(distance, lessThan(6.0));
+      final distance = await mapService.calculateDistanceKm(kondapur, miyapur);
+      // Realistic aerial distance ~3.69 km
+      expect(distance, greaterThan(3.0));
+      expect(distance, lessThan(4.5));
     });
 
     test('calculateDistanceKm returns 0 for same location', () async {
-      const point = GeoLocation(latitude: 12.9352, longitude: 77.6245);
+      const point = GeoLocation(latitude: 17.4646, longitude: 78.3667);
       final distance = await mapService.calculateDistanceKm(point, point);
       expect(distance, equals(0.0));
     });
 
-    test('reverseGeocode identifies Bengaluru hubs', () async {
-      final address = await mapService.reverseGeocode(12.9352, 77.6245);
-      expect(address, contains('Koramangala'));
+    test('reverseGeocode identifies Hyderabad hubs', () async {
+      final address = await mapService.reverseGeocode(17.4968, 78.3582);
+      expect(address, contains('Miyapur'));
     });
 
     test('searchPlaces finds matching stations', () async {
-      final results = await mapService.searchPlaces('Indiranagar');
+      final results = await mapService.searchPlaces('Miyapur');
       expect(results.isNotEmpty, isTrue);
-      expect(results.first.address, contains('Indiranagar'));
+      expect(results.first.address, contains('Miyapur'));
     });
   });
 }

@@ -48,8 +48,8 @@ void main() {
       expect(token, isNotNull);
       expect(token!.isNotEmpty, isTrue);
 
-      await expectLater(fcm.subscribeToTopic('bengaluru_fleet_alerts'), completes);
-      await expectLater(fcm.unsubscribeFromTopic('bengaluru_fleet_alerts'), completes);
+      await expectLater(fcm.subscribeToTopic('hyderabad_fleet_alerts'), completes);
+      await expectLater(fcm.unsubscribeFromTopic('hyderabad_fleet_alerts'), completes);
     });
   });
 }
