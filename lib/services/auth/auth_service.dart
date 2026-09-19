@@ -15,5 +15,7 @@ abstract class AuthService {
     String? fullName,
     String? email,
     String? drivingLicenseNumber,
+    String? drivingLicenseDocUrl,
+    KycStatus? kycStatus,
   });
 }

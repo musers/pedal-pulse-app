@@ -18,7 +18,7 @@ class SupabaseConfig {
     if (isConfigured) {
       await Supabase.initialize(
         url: supabaseUrl,
-        anonKey: supabaseAnonKey,
+        publishableKey: supabaseAnonKey,
       );
     }
   }

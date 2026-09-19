@@ -1,6 +1,8 @@
 import '../../domain/entities/bike.dart';
 import '../../domain/entities/bike_category.dart';
+import '../../domain/entities/promo_code.dart';
 import '../../domain/entities/station.dart';
+import '../../domain/entities/subscription_plan.dart';
 
 class MockDataSource {
   static const List<BikeCategory> categories = [
@@ -180,6 +182,182 @@ class MockDataSource {
       imageUrl: 'https://images.unsplash.com/photo-1568772585407-9361f9bf3a87?auto=format&fit=crop&w=800&q=80',
       features: ['155cc Liquid Cooled VVA', 'Upside Down Front Forks', 'Traction Control', 'Assist & Slipper Clutch'],
       odometerKm: 5400,
+    ),
+  ];
+
+  // Seed Subscription Plans (Weekly, Monthly, Quarterly)
+  static const List<SubscriptionPlan> subscriptionPlans = [
+    SubscriptionPlan(
+      id: 'plan_weekly_ev',
+      name: 'Weekly City Commute Pass',
+      tagline: 'Ideal for hybrid office commuters & short-term Bangalore stays',
+      vehicleType: 'Smart EV Scooter (Ather 450X / Ola S1)',
+      categoryId: 'cat_ev_scooter',
+      durationDays: 7,
+      billingCycle: SubscriptionBillingCycle.weekly,
+      price: 1899.0,
+      securityDeposit: 1499.0,
+      dailyKmCap: 70,
+      freeMaintenanceIncluded: true,
+      swappableBatteryAccess: true,
+      helmetIncluded: true,
+      doorstepDelivery: false,
+      isPopular: false,
+      highlights: [
+        '70 km/day included (490 km weekly)',
+        'Free fast charging at all 4 Bengaluru Hubs',
+        '1 Sanitized ISI Helmet provided',
+        'Free vehicle maintenance swap within 2 hours',
+      ],
+    ),
+    SubscriptionPlan(
+      id: 'plan_monthly_pro',
+      name: 'Monthly Pro Rider',
+      tagline: 'Most popular all-inclusive monthly mobility subscription',
+      vehicleType: 'Premium EV Scooter or Honda Activa 6G',
+      categoryId: 'cat_ev_scooter',
+      durationDays: 30,
+      billingCycle: SubscriptionBillingCycle.monthly,
+      price: 6499.0,
+      securityDeposit: 1999.0,
+      dailyKmCap: 0,
+      isUnlimitedKm: true,
+      freeMaintenanceIncluded: true,
+      swappableBatteryAccess: true,
+      helmetIncluded: true,
+      doorstepDelivery: true,
+      isPopular: true,
+      highlights: [
+        'Unlimited Km City Riding across Karnataka',
+        'Free Doorstep Maintenance & monthly servicing',
+        '2 Helmets + Fast Portable Charger included',
+        'Instant backup vehicle replacement guarantee',
+        'Pause subscription up to 5 days without penalty',
+      ],
+    ),
+    SubscriptionPlan(
+      id: 'plan_monthly_tourer',
+      name: 'Executive Tourer Pass',
+      tagline: 'Built for enthusiasts, highway riders and long-distance travel',
+      vehicleType: 'Royal Enfield Hunter 350 / Yamaha MT-15',
+      categoryId: 'cat_cruiser',
+      durationDays: 30,
+      billingCycle: SubscriptionBillingCycle.monthly,
+      price: 9999.0,
+      securityDeposit: 2999.0,
+      dailyKmCap: 120,
+      isUnlimitedKm: false,
+      freeMaintenanceIncluded: true,
+      swappableBatteryAccess: false,
+      helmetIncluded: true,
+      doorstepDelivery: true,
+      isPopular: false,
+      highlights: [
+        '3,600 km monthly allowance with rollover',
+        'Comprehensive Bumper-to-Bumper Insurance',
+        '24x7 Pan-India Roadside Breakdown Assistance',
+        'Free doorstep delivery and monthly engine tuneup',
+      ],
+    ),
+  ];
+
+  // In-Memory Mutable User Subscriptions
+  static final List<UserSubscription> userSubscriptions = [
+    UserSubscription(
+      id: 'sub_demo_01',
+      subscriptionNumber: 'SUB-2026-0891',
+      userId: 'usr_demo_customer',
+      planId: 'plan_monthly_pro',
+      planName: 'Monthly Pro Rider',
+      assignedBikeId: 'bike_001',
+      assignedBikeName: 'Ather 450X (KA 01 EK 4501)',
+      pickupStationId: 'st_indiranagar',
+      startDate: DateTime.now().subtract(const Duration(days: 6)),
+      endDate: DateTime.now().add(const Duration(days: 24)),
+      amountPaid: 6499.0,
+      securityDeposit: 1999.0,
+      promoCodeUsed: 'START50',
+      discountApplied: 50.0,
+      status: UserSubscriptionStatus.active,
+      depositStatus: 'held',
+      autoRenew: true,
+      createdAt: DateTime.now().subtract(const Duration(days: 6)),
+    ),
+  ];
+
+  // Seed Time-Bound Promo Codes
+  static final List<PromoCode> promoCodes = [
+    PromoCode(
+      id: 'promo_01',
+      code: 'START50',
+      description: 'Flat ₹50 off on your first rental or booking',
+      discountType: DiscountType.flat,
+      discountValue: 50.0,
+      minOrderAmount: 200.0,
+      validFrom: DateTime.now().subtract(const Duration(days: 30)),
+      validUntil: DateTime.now().add(const Duration(days: 90)), // Time-bound
+      usageLimit: 1000,
+      usedCount: 142,
+      applicableType: PromoApplicableType.all,
+      isActive: true,
+    ),
+    PromoCode(
+      id: 'promo_02',
+      code: 'BLRCOMMUTE',
+      description: '20% off up to ₹200 for Bengaluru daily commutes',
+      discountType: DiscountType.percentage,
+      discountValue: 20.0,
+      minOrderAmount: 300.0,
+      maxDiscountAmount: 200.0,
+      validFrom: DateTime.now().subtract(const Duration(days: 10)),
+      validUntil: DateTime.now().add(const Duration(days: 45)), // Time-bound
+      usageLimit: 500,
+      usedCount: 88,
+      applicableType: PromoApplicableType.rental,
+      isActive: true,
+    ),
+    PromoCode(
+      id: 'promo_03',
+      code: 'MONTHLY500',
+      description: 'Flat ₹500 off on 30-Day Pro & Executive monthly passes',
+      discountType: DiscountType.flat,
+      discountValue: 500.0,
+      minOrderAmount: 5000.0,
+      validFrom: DateTime.now().subtract(const Duration(days: 15)),
+      validUntil: DateTime.now().add(const Duration(days: 60)), // Time-bound
+      usageLimit: 250,
+      usedCount: 39,
+      applicableType: PromoApplicableType.subscription,
+      isActive: true,
+    ),
+    PromoCode(
+      id: 'promo_04',
+      code: 'WEEKEND15',
+      description: '15% off up to ₹150 for weekend getaways',
+      discountType: DiscountType.percentage,
+      discountValue: 15.0,
+      minOrderAmount: 400.0,
+      maxDiscountAmount: 150.0,
+      validFrom: DateTime.now().subtract(const Duration(days: 5)),
+      validUntil: DateTime.now().add(const Duration(days: 20)), // Time-bound
+      usageLimit: 300,
+      usedCount: 64,
+      applicableType: PromoApplicableType.all,
+      isActive: true,
+    ),
+    PromoCode(
+      id: 'promo_05',
+      code: 'EXPIRED20',
+      description: 'Expired test discount coupon',
+      discountType: DiscountType.percentage,
+      discountValue: 20.0,
+      minOrderAmount: 100.0,
+      validFrom: DateTime.now().subtract(const Duration(days: 60)),
+      validUntil: DateTime.now().subtract(const Duration(days: 5)), // Expired
+      usageLimit: 50,
+      usedCount: 50,
+      applicableType: PromoApplicableType.all,
+      isActive: true,
     ),
   ];
 }

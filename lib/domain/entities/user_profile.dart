@@ -35,4 +35,28 @@ class UserProfile {
   });
 
   bool get isKycVerified => kycStatus == KycStatus.verified;
+
+  UserProfile copyWith({
+    String? id,
+    String? phoneNumber,
+    String? fullName,
+    String? email,
+    UserRole? role,
+    KycStatus? kycStatus,
+    String? drivingLicenseNumber,
+    String? drivingLicenseDocUrl,
+    DateTime? createdAt,
+  }) {
+    return UserProfile(
+      id: id ?? this.id,
+      phoneNumber: phoneNumber ?? this.phoneNumber,
+      fullName: fullName ?? this.fullName,
+      email: email ?? this.email,
+      role: role ?? this.role,
+      kycStatus: kycStatus ?? this.kycStatus,
+      drivingLicenseNumber: drivingLicenseNumber ?? this.drivingLicenseNumber,
+      drivingLicenseDocUrl: drivingLicenseDocUrl ?? this.drivingLicenseDocUrl,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
 }

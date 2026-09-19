@@ -1,12 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../domain/entities/user_profile.dart';
+import '../../common/providers/auth_state_provider.dart';
+import '../auth/auth_modal.dart';
+import 'kyc_submission_screen.dart';
 
-class ProfileScreen extends StatelessWidget {
+class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final user = ref.watch(authControllerProvider).value;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Account & Settings', style: TextStyle(fontWeight: FontWeight.bold)),
@@ -14,65 +22,135 @@ class ProfileScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          // User Card
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: AppColors.lightSurfaceCard,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppColors.lightBorder),
-            ),
-            child: Row(
-              children: [
-                CircleAvatar(
-                  radius: 30,
-                  backgroundColor: AppColors.primary,
-                  child: const Text('BG', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
-                ),
-                const SizedBox(width: 16),
-                const Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Bala Gangadhar', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-                      SizedBox(height: 4),
-                      Text('+91 98765 00000', style: TextStyle(color: AppColors.textSecondaryLight, fontSize: 14)),
-                      SizedBox(height: 6),
-                      Row(
-                        children: [
-                          Icon(Icons.verified_rounded, color: AppColors.success, size: 16),
-                          SizedBox(width: 4),
-                          Text('KYC Verified (DL Approved)', style: TextStyle(color: AppColors.success, fontSize: 12, fontWeight: FontWeight.w600)),
-                        ],
-                      ),
-                    ],
+          // User Card or Login Prompt
+          if (user != null) ...[
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppColors.lightSurfaceCard,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: AppColors.lightBorder),
+              ),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 30,
+                    backgroundColor: AppColors.primary,
+                    child: Text(
+                      user.fullName.isNotEmpty
+                          ? user.fullName.split(' ').map((e) => e.isNotEmpty ? e[0] : '').take(2).join().toUpperCase()
+                          : 'VR',
+                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
+                    ),
                   ),
-                ),
-              ],
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          user.fullName.isNotEmpty ? user.fullName : 'VeloRide Rider',
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          user.phoneNumber,
+                          style: const TextStyle(color: AppColors.textSecondaryLight, fontSize: 14),
+                        ),
+                        const SizedBox(height: 6),
+                        _KycBadge(status: user.kycStatus),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
+          ] else ...[
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
+              ),
+              child: Column(
+                children: [
+                  const Icon(Icons.account_circle_outlined, size: 48, color: AppColors.primary),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Login to manage your bookings & rentals',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 6),
+                  const Text(
+                    'Instant OTP login with your Indian phone number.',
+                    style: TextStyle(fontSize: 13, color: AppColors.textSecondaryLight),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton.icon(
+                    icon: const Icon(Icons.login_rounded, size: 18),
+                    label: const Text('Sign In / Register with Mobile'),
+                    onPressed: () => AuthModal.show(context),
+                  ),
+                ],
+              ),
+            ),
+          ],
 
           const SizedBox(height: 24),
 
-          const Text('Rental Preferences', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+          const Text('Rental & Identity', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
           const SizedBox(height: 12),
           _SettingsTile(
             icon: Icons.badge_outlined,
-            title: 'Driving License Details',
-            subtitle: 'KA-01-2022-0049210',
-            onTap: () {},
+            title: 'Driving License Details (KYC)',
+            subtitle: user?.drivingLicenseNumber != null
+                ? '${user!.drivingLicenseNumber} (${user.kycStatus.name})'
+                : 'Action Required: Upload Two-Wheeler DL to book',
+            trailingWidget: user?.isKycVerified == true
+                ? const Icon(Icons.check_circle, color: AppColors.success, size: 20)
+                : const Icon(Icons.arrow_forward_ios, size: 14, color: AppColors.textSecondaryLight),
+            onTap: () {
+              if (user == null) {
+                AuthModal.show(context, redirectTitle: 'Login to verify KYC');
+              } else {
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const KycSubmissionScreen()),
+                );
+              }
+            },
           ),
           _SettingsTile(
             icon: Icons.account_balance_wallet_outlined,
             title: 'Security Deposit Account',
-            subtitle: 'Refunds returned to source payment method',
+            subtitle: 'Refunds processed to source payment method via Razorpay',
             onTap: () {},
           ),
           _SettingsTile(
             icon: Icons.description_outlined,
-            title: 'Rental Agreements & Invoices',
-            subtitle: 'View GST compliant tax invoices',
+            title: 'Rental Agreements & Tax Invoices',
+            subtitle: 'View GST compliant tax receipts via Resend',
             onTap: () {},
+          ),
+
+          const SizedBox(height: 24),
+          const Text('Administrative Desk', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+          const SizedBox(height: 12),
+          _SettingsTile(
+            icon: Icons.admin_panel_settings_outlined,
+            title: 'Hub Fleet & Dispatch Portal',
+            subtitle: 'Manage station inventory, check-in, check-out & returns',
+            trailingWidget: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: AppColors.secondary.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Text('Admin / Staff', style: TextStyle(color: AppColors.secondary, fontSize: 11, fontWeight: FontWeight.bold)),
+            ),
+            onTap: () => context.push('/admin'),
           ),
 
           const SizedBox(height: 24),
@@ -88,9 +166,40 @@ class ProfileScreen extends StatelessWidget {
           _SettingsTile(
             icon: Icons.policy_outlined,
             title: 'Terms of Service & Rental Policy',
-            subtitle: 'Helmet rules, traffic fines, fuel guidelines',
+            subtitle: 'Helmet rules, traffic fines, fuel & security policies',
             onTap: () {},
           ),
+
+          if (user != null) ...[
+            const SizedBox(height: 24),
+            OutlinedButton.icon(
+              icon: const Icon(Icons.logout_rounded, color: AppColors.error, size: 18),
+              label: const Text('Sign Out', style: TextStyle(color: AppColors.error)),
+              style: OutlinedButton.styleFrom(
+                side: const BorderSide(color: AppColors.error),
+              ),
+              onPressed: () async {
+                final confirm = await showDialog<bool>(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    title: const Text('Sign Out'),
+                    content: const Text('Are you sure you want to sign out from VeloRide?'),
+                    actions: [
+                      TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
+                        onPressed: () => Navigator.pop(ctx, true),
+                        child: const Text('Sign Out'),
+                      ),
+                    ],
+                  ),
+                );
+                if (confirm == true) {
+                  await ref.read(authControllerProvider.notifier).signOut();
+                }
+              },
+            ),
+          ],
 
           const SizedBox(height: 32),
 
@@ -106,16 +215,65 @@ class ProfileScreen extends StatelessWidget {
   }
 }
 
+class _KycBadge extends StatelessWidget {
+  final KycStatus status;
+
+  const _KycBadge({required this.status});
+
+  @override
+  Widget build(BuildContext context) {
+    Color color;
+    String label;
+    IconData icon;
+
+    switch (status) {
+      case KycStatus.verified:
+        color = AppColors.success;
+        label = 'KYC Verified (DL Approved)';
+        icon = Icons.verified_rounded;
+        break;
+      case KycStatus.pendingReview:
+        color = AppColors.warning;
+        label = 'KYC Under Review';
+        icon = Icons.pending_actions_rounded;
+        break;
+      case KycStatus.rejected:
+        color = AppColors.error;
+        label = 'KYC Rejected - Re-upload';
+        icon = Icons.cancel_outlined;
+        break;
+      case KycStatus.notSubmitted:
+        color = AppColors.secondary;
+        label = 'KYC Pending (Upload DL)';
+        icon = Icons.info_outline;
+        break;
+    }
+
+    return Row(
+      children: [
+        Icon(icon, color: color, size: 16),
+        const SizedBox(width: 4),
+        Text(
+          label,
+          style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.w600),
+        ),
+      ],
+    );
+  }
+}
+
 class _SettingsTile extends StatelessWidget {
   final IconData icon;
   final String title;
   final String subtitle;
+  final Widget? trailingWidget;
   final VoidCallback onTap;
 
   const _SettingsTile({
     required this.icon,
     required this.title,
     required this.subtitle,
+    this.trailingWidget,
     required this.onTap,
   });
 
@@ -127,7 +285,7 @@ class _SettingsTile extends StatelessWidget {
         leading: Icon(icon, color: AppColors.primary),
         title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
         subtitle: Text(subtitle, style: const TextStyle(fontSize: 12, color: AppColors.textSecondaryLight)),
-        trailing: const Icon(Icons.chevron_right, size: 20, color: AppColors.textSecondaryLight),
+        trailing: trailingWidget ?? const Icon(Icons.chevron_right, size: 20, color: AppColors.textSecondaryLight),
         onTap: onTap,
       ),
     );

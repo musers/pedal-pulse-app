@@ -36,4 +36,29 @@ class AppColors {
   static const Color batteryFull = Color(0xFF10B981);
   static const Color batteryMedium = Color(0xFFF59E0B);
   static const Color batteryLow = Color(0xFFEF4444);
+
+  // Gradients for Modern Web Aesthetics
+  static const LinearGradient brandGradient = LinearGradient(
+    colors: [primary, primaryLight],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+
+  static const LinearGradient heroGradient = LinearGradient(
+    colors: [Color(0xFF042F2E), Color(0xFF0F766E), Color(0xFF115E59)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+
+  static const LinearGradient accentGradient = LinearGradient(
+    colors: [Color(0xFFF59E0B), Color(0xFFF97316)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+
+  static const LinearGradient cardOverlayGradient = LinearGradient(
+    colors: [Colors.transparent, Color(0xCC000000)],
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+  );
 }

@@ -2,7 +2,27 @@ import '../../domain/entities/booking.dart';
 import '../../domain/repositories/booking_repository.dart';
 
 class MockBookingRepository implements BookingRepository {
-  final List<Booking> _bookings = [];
+  final List<Booking> _bookings = [
+    Booking(
+      id: 'bk_demo_active_01',
+      bookingNumber: 'VR-BLR-8921',
+      customerId: 'usr_demo_customer_01',
+      bikeId: 'bike_001',
+      pickupStationId: 'st_indiranagar',
+      returnStationId: 'st_indiranagar',
+      startTime: DateTime.now().subtract(const Duration(hours: 1)),
+      endTime: DateTime.now().add(const Duration(hours: 3)),
+      pricing: const PricingBreakdown(
+        rentalFare: 276.00,
+        gstAmount: 49.68,
+        securityDeposit: 999.00,
+        totalPayable: 1324.68,
+      ),
+      status: BookingStatus.confirmed,
+      depositStatus: SecurityDepositStatus.held,
+      createdAt: DateTime.now().subtract(const Duration(hours: 2)),
+    ),
+  ];
 
   @override
   Future<List<Booking>> getUserBookings(String customerId) async {
