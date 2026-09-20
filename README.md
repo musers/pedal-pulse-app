@@ -77,12 +77,52 @@ flutter run -d ios
 
 You can test, migrate, build, and deploy the entire platform **entirely via code & CLI automation**:
 
-### A. Verify Cloud Service Credentials
+### A. 🌐 Vercel Production Deployment (Recommended)
+
+The project is pre-configured with [`vercel.json`](vercel.json) for Flutter Web SPA routing and CDN caching.
+
+#### 1. First-Time Setup & Authentication (One-time only)
+If Node.js is not yet installed:
+```powershell
+winget install OpenJS.NodeJS
+```
+
+Log in to your Vercel account:
+```powershell
+npx vercel login
+```
+*(Select GitHub or Email and authorize via the browser prompt).*
+
+#### 2. Compile & Deploy to Production
+```powershell
+# 1. Build release web bundle
+flutter build web --release
+
+# 2. Deploy to live Vercel production URL
+npx vercel --prod
+```
+
+> **First Deploy Prompts:** Press <kbd>Enter</kbd> (defaults) for all prompts:
+> - `Set up and deploy?` ➔ `Y`
+> - `Which scope?` ➔ `<Your Account>`
+> - `Link to existing project?` ➔ `N`
+> - `Project name?` ➔ `rental-subscription-platform`
+> - `Directory?` ➔ `./`
+> - `Override settings?` ➔ `N` *(picks up `vercel.json` automatically)*
+
+#### 3. Instant Temporary Link (No Login Required)
+```powershell
+npx vercel deploy --temporary
+```
+
+---
+
+### B. Verify Cloud Service Credentials
 ```bash
 dart run scripts/verify_cloud_env.dart
 ```
 
-### B. One-Command Automated Cloud Deployment
+### C. One-Command Automated Cloud Deployment
 ```powershell
 # Run full automated deployment (Analyzer -> Test Suite -> Release Web Build)
 .\scripts\deploy_cloud.ps1 -Target web
@@ -91,14 +131,15 @@ dart run scripts/verify_cloud_env.dart
 .\scripts\deploy_cloud.ps1 -Target web -ApplyMigrations
 ```
 
-### C. Containerized Docker Deployment
+### D. Containerized Docker Deployment
 ```bash
 # Build and run with Docker Compose
 docker-compose up --build -d
 ```
 
-### D. Automated GitHub Actions CI/CD
+### E. Automated GitHub Actions CI/CD
 Pushing to `main` triggers `.github/workflows/ci_cd_deploy.yml`, which automatically runs static code analysis, executes 40+ unit tests, validates cloud infrastructure, and compiles the production web distribution.
+
 
 ---
 
