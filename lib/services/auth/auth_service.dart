@@ -10,6 +10,13 @@ abstract class AuthService {
     required String phoneNumber,
     required String otpToken,
   });
+
+  Future<void> sendEmailOtp({required String email});
+  Future<UserProfile> verifyEmailOtp({
+    required String email,
+    required String otpToken,
+  });
+
   Future<void> signOut();
   Future<UserProfile> updateProfile({
     String? fullName,

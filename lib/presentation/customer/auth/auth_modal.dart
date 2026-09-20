@@ -7,8 +7,13 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/responsive_layout.dart';
 import '../../common/providers/auth_state_provider.dart';
 
+enum AuthMethod {
+  phone,
+  email,
+}
+
 enum AuthStep {
-  phoneInput,
+  input,
   otpVerification,
   profileSetup,
 }
@@ -34,7 +39,7 @@ class AuthModal extends ConsumerStatefulWidget {
         builder: (ctx) => Dialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 440),
+            constraints: const BoxConstraints(maxWidth: 450),
             child: AuthModal(redirectTitle: redirectTitle, onSuccess: onSuccess),
           ),
         ),
@@ -63,11 +68,14 @@ class AuthModal extends ConsumerStatefulWidget {
 }
 
 class _AuthModalState extends ConsumerState<AuthModal> {
-  AuthStep _step = AuthStep.phoneInput;
+  AuthMethod _method = AuthMethod.phone;
+  AuthStep _step = AuthStep.input;
+
   final TextEditingController _phoneController = TextEditingController();
+  final TextEditingController _emailInputController = TextEditingController();
   final TextEditingController _otpController = TextEditingController();
   final TextEditingController _nameController = TextEditingController();
-  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _profileEmailController = TextEditingController();
 
   bool _isLoading = false;
   String? _errorMessage;
@@ -77,9 +85,10 @@ class _AuthModalState extends ConsumerState<AuthModal> {
   @override
   void dispose() {
     _phoneController.dispose();
+    _emailInputController.dispose();
     _otpController.dispose();
     _nameController.dispose();
-    _emailController.dispose();
+    _profileEmailController.dispose();
     _resendTimer?.cancel();
     super.dispose();
   }
@@ -104,20 +113,35 @@ class _AuthModalState extends ConsumerState<AuthModal> {
     return '+91$raw';
   }
 
-  Future<void> _handleSendOtp() async {
-    final raw = _phoneController.text.trim().replaceAll(RegExp(r'\D'), '');
-    if (raw.length < 10) {
-      setState(() => _errorMessage = 'Please enter a valid 10-digit mobile number');
-      return;
-    }
-
+  Future<void> _handleSendCode() async {
     setState(() {
       _isLoading = true;
       _errorMessage = null;
     });
 
     try {
-      await ref.read(authControllerProvider.notifier).sendOtp(_formattedPhone);
+      if (_method == AuthMethod.phone) {
+        final raw = _phoneController.text.trim().replaceAll(RegExp(r'\D'), '');
+        if (raw.length < 10) {
+          setState(() {
+            _isLoading = false;
+            _errorMessage = 'Please enter a valid 10-digit mobile number';
+          });
+          return;
+        }
+        await ref.read(authControllerProvider.notifier).sendOtp(_formattedPhone);
+      } else {
+        final email = _emailInputController.text.trim();
+        if (email.isEmpty || !email.contains('@') || !email.contains('.')) {
+          setState(() {
+            _isLoading = false;
+            _errorMessage = 'Please enter a valid email address';
+          });
+          return;
+        }
+        await ref.read(authControllerProvider.notifier).sendEmailOtp(email);
+      }
+
       _startResendTimer();
       setState(() {
         _step = AuthStep.otpVerification;
@@ -134,7 +158,7 @@ class _AuthModalState extends ConsumerState<AuthModal> {
   Future<void> _handleVerifyOtp() async {
     final otp = _otpController.text.trim();
     if (otp.length != 6) {
-      setState(() => _errorMessage = 'Please enter the 6-digit OTP');
+      setState(() => _errorMessage = 'Please enter the 6-digit verification code');
       return;
     }
 
@@ -144,13 +168,14 @@ class _AuthModalState extends ConsumerState<AuthModal> {
     });
 
     try {
-      final user = await ref.read(authControllerProvider.notifier).verifyOtp(
-            _formattedPhone,
-            otp,
-          );
+      final user = _method == AuthMethod.phone
+          ? await ref.read(authControllerProvider.notifier).verifyOtp(_formattedPhone, otp)
+          : await ref.read(authControllerProvider.notifier).verifyEmailOtp(_emailInputController.text.trim(), otp);
 
-      if (user.fullName.isEmpty || user.fullName == 'New Customer') {
+      if (user.fullName.isEmpty || user.fullName == 'New Customer' || user.fullName == _emailInputController.text.trim().split('@').first) {
         setState(() {
+          _nameController.text = user.fullName.isNotEmpty ? user.fullName : '';
+          _profileEmailController.text = user.email ?? _emailInputController.text.trim();
           _step = AuthStep.profileSetup;
           _isLoading = false;
         });
@@ -183,7 +208,7 @@ class _AuthModalState extends ConsumerState<AuthModal> {
     try {
       await ref.read(authControllerProvider.notifier).updateProfile(
             fullName: name,
-            email: _emailController.text.trim().isNotEmpty ? _emailController.text.trim() : null,
+            email: _profileEmailController.text.trim().isNotEmpty ? _profileEmailController.text.trim() : null,
           );
 
       if (mounted) {
@@ -229,7 +254,7 @@ class _AuthModalState extends ConsumerState<AuthModal> {
                         style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
                       ),
                       Text(
-                        widget.redirectTitle ?? 'Quick Phone Login',
+                        widget.redirectTitle ?? 'Customer & Partner Login',
                         style: const TextStyle(fontSize: 13, color: AppColors.textSecondaryLight),
                       ),
                     ],
@@ -243,7 +268,92 @@ class _AuthModalState extends ConsumerState<AuthModal> {
             ],
           ),
 
-          const SizedBox(height: 20),
+          const SizedBox(height: 16),
+
+          // Method Selector Tabs (Phone vs Email)
+          if (_step == AuthStep.input) ...[
+            Container(
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                color: AppColors.lightSurfaceCard,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.lightBorder),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () => setState(() {
+                        _method = AuthMethod.phone;
+                        _errorMessage = null;
+                      }),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        decoration: BoxDecoration(
+                          color: _method == AuthMethod.phone ? AppColors.primary : Colors.transparent,
+                          borderRadius: BorderRadius.circular(9),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.phone_iphone_rounded,
+                              size: 17,
+                              color: _method == AuthMethod.phone ? Colors.white : AppColors.textSecondaryLight,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              'Mobile OTP',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                                color: _method == AuthMethod.phone ? Colors.white : AppColors.textSecondaryLight,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () => setState(() {
+                        _method = AuthMethod.email;
+                        _errorMessage = null;
+                      }),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        decoration: BoxDecoration(
+                          color: _method == AuthMethod.email ? AppColors.primary : Colors.transparent,
+                          borderRadius: BorderRadius.circular(9),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.email_outlined,
+                              size: 17,
+                              color: _method == AuthMethod.email ? Colors.white : AppColors.textSecondaryLight,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              'Email Address',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                                color: _method == AuthMethod.email ? Colors.white : AppColors.textSecondaryLight,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
 
           // Error Banner if present
           if (_errorMessage != null) ...[
@@ -270,72 +380,100 @@ class _AuthModalState extends ConsumerState<AuthModal> {
             const SizedBox(height: 16),
           ],
 
-          // Step 1: Phone Number Input
-          if (_step == AuthStep.phoneInput) ...[
-            const Text(
-              'Enter your Indian Mobile Number',
-              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
-            ),
-            const SizedBox(height: 6),
-            const Text(
-              'We will send a 6-digit OTP for instant verification.',
-              style: TextStyle(color: AppColors.textSecondaryLight, fontSize: 13),
-            ),
-            const SizedBox(height: 16),
+          // Step 1: Input (Phone or Email)
+          if (_step == AuthStep.input) ...[
+            if (_method == AuthMethod.phone) ...[
+              const Text(
+                'Enter your Mobile Number',
+                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
+              ),
+              const SizedBox(height: 6),
+              const Text(
+                'We will send a 6-digit OTP for instant login.',
+                style: TextStyle(color: AppColors.textSecondaryLight, fontSize: 13),
+              ),
+              const SizedBox(height: 16),
 
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 15),
-                  decoration: BoxDecoration(
-                    color: AppColors.lightSurfaceCard,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppColors.lightBorder),
-                  ),
-                  child: const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text('🇮🇳', style: TextStyle(fontSize: 18)),
-                      SizedBox(width: 6),
-                      Text('+91', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: TextField(
-                    controller: _phoneController,
-                    keyboardType: TextInputType.phone,
-                    autofocus: true,
-                    inputFormatters: [
-                      FilteringTextInputFormatter.digitsOnly,
-                      LengthLimitingTextInputFormatter(10),
-                    ],
-                    decoration: const InputDecoration(
-                      hintText: '98765 00000',
-                      prefixIcon: Icon(Icons.phone_outlined, size: 20),
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 15),
+                    decoration: BoxDecoration(
+                      color: AppColors.lightSurfaceCard,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppColors.lightBorder),
                     ),
-                    onSubmitted: (_) => _handleSendOtp(),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text('🇮🇳', style: TextStyle(fontSize: 18)),
+                        SizedBox(width: 6),
+                        Text('+91', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                      ],
+                    ),
                   ),
-                ),
-              ],
-            ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: TextField(
+                      controller: _phoneController,
+                      keyboardType: TextInputType.phone,
+                      autofocus: true,
+                      inputFormatters: [
+                        FilteringTextInputFormatter.digitsOnly,
+                        LengthLimitingTextInputFormatter(10),
+                      ],
+                      decoration: const InputDecoration(
+                        hintText: '98765 00000',
+                        prefixIcon: Icon(Icons.phone_outlined, size: 20),
+                      ),
+                      onSubmitted: (_) => _handleSendCode(),
+                    ),
+                  ),
+                ],
+              ),
+            ] else ...[
+              const Text(
+                'Enter your Email Address',
+                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
+              ),
+              const SizedBox(height: 6),
+              const Text(
+                'We will send a 6-digit verification code to your email.',
+                style: TextStyle(color: AppColors.textSecondaryLight, fontSize: 13),
+              ),
+              const SizedBox(height: 16),
 
-            const SizedBox(height: 8),
+              TextField(
+                controller: _emailInputController,
+                keyboardType: TextInputType.emailAddress,
+                autofocus: true,
+                decoration: const InputDecoration(
+                  hintText: 'name@example.com',
+                  prefixIcon: Icon(Icons.email_outlined, size: 20),
+                ),
+                onSubmitted: (_) => _handleSendCode(),
+              ),
+            ],
+
+            const SizedBox(height: 12),
             // Demo hint
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
                 color: AppColors.info.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: const Row(
+              child: Row(
                 children: [
-                  Icon(Icons.info_outline, size: 14, color: AppColors.info),
-                  SizedBox(width: 6),
-                  Text(
-                    'Demo test login: Use 9876500000 (OTP: 123456)',
-                    style: TextStyle(fontSize: 12, color: AppColors.info),
+                  const Icon(Icons.info_outline, size: 14, color: AppColors.info),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      _method == AuthMethod.phone
+                          ? 'Demo login: Use 9876500000 or 9999900001 (OTP: 123456)'
+                          : 'Test login: Enter your email (OTP: 123456 or Supabase Code)',
+                      style: const TextStyle(fontSize: 12, color: AppColors.info),
+                    ),
                   ),
                 ],
               ),
@@ -343,14 +481,14 @@ class _AuthModalState extends ConsumerState<AuthModal> {
 
             const SizedBox(height: 24),
             ElevatedButton(
-              onPressed: _isLoading ? null : _handleSendOtp,
+              onPressed: _isLoading ? null : _handleSendCode,
               child: _isLoading
                   ? const SizedBox(
                       width: 20,
                       height: 20,
                       child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                     )
-                  : const Text('Get OTP via SMS'),
+                  : Text(_method == AuthMethod.phone ? 'Get OTP via SMS' : 'Get Verification Code'),
             ),
           ],
 
@@ -360,17 +498,17 @@ class _AuthModalState extends ConsumerState<AuthModal> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 const Text(
-                  'Verify 6-Digit OTP',
+                  'Verify 6-Digit Code',
                   style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
                 ),
                 TextButton(
-                  onPressed: () => setState(() => _step = AuthStep.phoneInput),
-                  child: const Text('Change Number', style: TextStyle(fontSize: 13)),
+                  onPressed: () => setState(() => _step = AuthStep.input),
+                  child: Text(_method == AuthMethod.phone ? 'Change Number' : 'Change Email', style: const TextStyle(fontSize: 13)),
                 ),
               ],
             ),
             Text(
-              'Sent to $_formattedPhone',
+              'Sent to ${_method == AuthMethod.phone ? _formattedPhone : _emailInputController.text.trim()}',
               style: const TextStyle(color: AppColors.textSecondaryLight, fontSize: 13),
             ),
             const SizedBox(height: 16),
@@ -399,14 +537,14 @@ class _AuthModalState extends ConsumerState<AuthModal> {
               children: [
                 if (_resendTimerSeconds > 0)
                   Text(
-                    'Resend OTP in ${_resendTimerSeconds}s',
+                    'Resend code in ${_resendTimerSeconds}s',
                     style: const TextStyle(color: AppColors.textSecondaryLight, fontSize: 13),
                   )
                 else
                   TextButton.icon(
                     icon: const Icon(Icons.refresh_rounded, size: 16),
-                    label: const Text('Resend OTP'),
-                    onPressed: _handleSendOtp,
+                    label: const Text('Resend Code'),
+                    onPressed: _handleSendCode,
                   ),
                 Text(
                   'Test OTP: 123456',
@@ -456,10 +594,10 @@ class _AuthModalState extends ConsumerState<AuthModal> {
             ),
             const SizedBox(height: 12),
             TextField(
-              controller: _emailController,
+              controller: _profileEmailController,
               keyboardType: TextInputType.emailAddress,
               decoration: const InputDecoration(
-                labelText: 'Email Address (for invoices & receipts)',
+                labelText: 'Email Address (for GST tax invoices & receipts)',
                 hintText: 'e.g. ramesh@gmail.com',
                 prefixIcon: Icon(Icons.email_outlined),
               ),

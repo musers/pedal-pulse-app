@@ -5,11 +5,19 @@ import '../../../domain/entities/user_profile.dart';
 import '../../../services/auth/auth_service.dart';
 import '../../../services/auth/mock_auth_service.dart';
 import '../../../services/auth/supabase_auth_service.dart';
+import '../../../services/sms/msg91_sms_service.dart';
+
+final msg91SmsServiceProvider = Provider<Msg91SmsService>((ref) {
+  const authKey = String.fromEnvironment('MSG91_AUTH_KEY', defaultValue: '');
+  const templateId = String.fromEnvironment('MSG91_OTP_TEMPLATE_ID', defaultValue: '');
+  return Msg91SmsService(authKey: authKey, templateId: templateId);
+});
 
 final authServiceProvider = Provider<AuthService>((ref) {
   final client = SupabaseConfig.client;
+  final msg91 = ref.watch(msg91SmsServiceProvider);
   if (client != null) {
-    return SupabaseAuthService(client);
+    return SupabaseAuthService(client, msg91Service: msg91);
   }
   return MockAuthService();
 });
@@ -54,6 +62,34 @@ class AuthController extends Notifier<AsyncValue<UserProfile?>> {
     try {
       final user = await authService.verifyOtp(
         phoneNumber: phoneNumber,
+        otpToken: otpToken,
+      );
+      state = AsyncValue.data(user);
+      return user;
+    } catch (e, st) {
+      state = AsyncValue.error(e, st);
+      rethrow;
+    }
+  }
+
+  Future<void> sendEmailOtp(String email) async {
+    final authService = ref.read(authServiceProvider);
+    state = const AsyncValue.loading();
+    try {
+      await authService.sendEmailOtp(email: email);
+      state = AsyncValue.data(authService.currentUser);
+    } catch (e, st) {
+      state = AsyncValue.error(e, st);
+      rethrow;
+    }
+  }
+
+  Future<UserProfile> verifyEmailOtp(String email, String otpToken) async {
+    final authService = ref.read(authServiceProvider);
+    state = const AsyncValue.loading();
+    try {
+      final user = await authService.verifyEmailOtp(
+        email: email,
         otpToken: otpToken,
       );
       state = AsyncValue.data(user);

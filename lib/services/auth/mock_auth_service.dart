@@ -53,6 +53,42 @@ class MockAuthService implements AuthService {
   }
 
   @override
+  Future<void> sendEmailOtp({required String email}) async {
+    await Future.delayed(const Duration(milliseconds: 400));
+  }
+
+  @override
+  Future<UserProfile> verifyEmailOtp({
+    required String email,
+    required String otpToken,
+  }) async {
+    await Future.delayed(const Duration(milliseconds: 500));
+
+    if (otpToken.length != 6) {
+      throw Exception('Invalid OTP. Please enter a valid 6-digit OTP code.');
+    }
+
+    if (email.contains('admin')) {
+      _currentUser = adminUser;
+    } else if (email.contains('bala')) {
+      _currentUser = defaultVerifiedUser;
+    } else {
+      _currentUser = UserProfile(
+        id: 'usr_${DateTime.now().millisecondsSinceEpoch}',
+        phoneNumber: '',
+        fullName: email.split('@').first,
+        email: email,
+        role: UserRole.customer,
+        kycStatus: KycStatus.notSubmitted,
+        createdAt: DateTime.now(),
+      );
+    }
+
+    _authStateController.add(_currentUser);
+    return _currentUser!;
+  }
+
+  @override
   Future<UserProfile> verifyOtp({
     required String phoneNumber,
     required String otpToken,
