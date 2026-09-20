@@ -19,6 +19,7 @@ import '../../../domain/repositories/promo_repository.dart';
 import '../../../domain/repositories/station_repository.dart';
 import '../../../domain/repositories/subscription_repository.dart';
 import '../../../domain/repositories/wallet_repository.dart';
+import '../../../services/maps/google_map_service.dart';
 import '../../../services/maps/map_service.dart';
 import '../../../services/maps/mock_map_service.dart';
 
@@ -76,6 +77,12 @@ final walletRepositoryProvider = Provider<WalletRepository>((ref) {
   return MockWalletRepository();
 });
 
-final mapServiceProvider = Provider<MapService>((ref) {
-  return MockMapService();
+final googleMapsApiKeyProvider = Provider<String>((ref) {
+  return const String.fromEnvironment('GOOGLE_MAPS_API_KEY', defaultValue: '');
 });
+
+final mapServiceProvider = Provider<MapService>((ref) {
+  final apiKey = ref.watch(googleMapsApiKeyProvider);
+  return GoogleMapService(apiKey: apiKey.isNotEmpty ? apiKey : null);
+});
+
