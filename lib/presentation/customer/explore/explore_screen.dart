@@ -39,7 +39,7 @@ final searchQueryProvider =
 
 class IsMapViewNotifier extends Notifier<bool> {
   @override
-  bool build() => false;
+  bool build() => true;
   void toggle() => state = !state;
   void setMap(bool value) => state = value;
 }
@@ -231,14 +231,14 @@ class ExploreScreen extends ConsumerWidget {
                                 Icon(Icons.location_city_rounded, color: AppColors.secondaryLight, size: 20),
                                 SizedBox(width: 8),
                                 Text(
-                                  '4 Central Hubs Live',
+                                  '2 Central Smart Hubs Live',
                                   style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
                                 ),
                               ],
                             ),
                             const SizedBox(height: 8),
                             const Text(
-                              'Pick up at Indiranagar, Koramangala, HSR Layout, or Whitefield. Return at any hub.',
+                              'Pick up at Miyapur Metro Terminal or Kondapur HITEC City Hub. Keyless return at any hub.',
                               style: TextStyle(color: Color(0xFFE2E8F0), fontSize: 12),
                             ),
                             const SizedBox(height: 14),
