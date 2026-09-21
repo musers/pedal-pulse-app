@@ -1,0 +1,90 @@
+name: Build & Release Android APK
+
+on:
+  push:
+    branches: [ main, master, develop ]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+  pull_request:
+    branches: [ main, master, develop ]
+  workflow_dispatch:
+    inputs:
+      build_type:
+        description: 'Build artifact type'
+        required: true
+        default: 'apk'
+        type: choice
+        options:
+          - apk
+          - appbundle
+          - all
+
+jobs:
+  build_android:
+    name: 📱 Build Android Release Package (Free Tier)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: ☕ Setup Java 17 (JDK)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'gradle'
+
+      - name: 🤖 Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: 🎯 Setup Flutter SDK
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+          cache-key: 'flutter-:os:-:channel:-:version:-:arch:-:hash:'
+
+      - name: 📦 Install Flutter Dependencies
+        run: flutter pub get
+
+      - name: 🔍 Static Code Analysis
+        run: flutter analyze lib test
+
+      - name: 🧪 Run Automated Test Suite
+        run: flutter test
+
+      - name: 🔨 Build Android Release APK
+        if: ${{ github.event.inputs.build_type == 'apk' || github.event.inputs.build_type == 'all' || github.event_name != 'workflow_dispatch' }}
+        run: |
+          flutter build apk --release \
+            --dart-define=SUPABASE_URL="${{ secrets.SUPABASE_URL || 'https://bpgabdordakgiwkmgdzo.supabase.co' }}" \
+            --dart-define=SUPABASE_ANON_KEY="${{ secrets.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJwZ2FiZG9yZGFrZ2l3a21nZHpvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTgwOTU5NzUsImV4cCI6MjA3MzY3MTk3NX0.iV8eGzZ71t6W0gVlZ_T7yA6kC_uY1v1bX6YgZ8yA6kC' }}" \
+            --dart-define=GOOGLE_MAPS_API_KEY="${{ secrets.GOOGLE_MAPS_API_KEY || '' }}" \
+            --dart-define=MSG91_AUTH_KEY="${{ secrets.MSG91_AUTH_KEY || '' }}" \
+            --dart-define=RESEND_API_KEY="${{ secrets.RESEND_API_KEY || '' }}"
+
+      - name: 📦 Build Google Play App Bundle (AAB)
+        if: ${{ github.event.inputs.build_type == 'appbundle' || github.event.inputs.build_type == 'all' }}
+        run: |
+          flutter build appbundle --release \
+            --dart-define=SUPABASE_URL="${{ secrets.SUPABASE_URL || 'https://bpgabdordakgiwkmgdzo.supabase.co' }}" \
+            --dart-define=SUPABASE_ANON_KEY="${{ secrets.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJwZ2FiZG9yZGFrZ2l3a21nZHpvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTgwOTU5NzUsImV4cCI6MjA3MzY3MTk3NX0.iV8eGzZ71t6W0gVlZ_T7yA6kC_uY1v1bX6YgZ8yA6kC' }}" \
+            --dart-define=GOOGLE_MAPS_API_KEY="${{ secrets.GOOGLE_MAPS_API_KEY || '' }}"
+
+      - name: 📤 Upload Android APK Artifact
+        if: ${{ github.event.inputs.build_type == 'apk' || github.event.inputs.build_type == 'all' || github.event_name != 'workflow_dispatch' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: VeloRide-EV-Android-Release-APK
+          path: build/app/outputs/flutter-apk/app-release.apk
+          retention-days: 30
+
+      - name: 📤 Upload Google Play App Bundle Artifact
+        if: ${{ github.event.inputs.build_type == 'appbundle' || github.event.inputs.build_type == 'all' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: VeloRide-EV-PlayStore-Bundle-AAB
+          path: build/app/outputs/bundle/release/app-release.aab
+          retention-days: 30

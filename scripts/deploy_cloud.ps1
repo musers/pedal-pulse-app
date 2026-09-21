@@ -109,6 +109,28 @@ switch ($Target.ToLower()) {
         }
         Write-Host "  OK: Web distribution built successfully in 'build/web/'" -ForegroundColor Green
     }
+    { $_ -in "apk", "android" } {
+        Write-Host "  Compiling Android Release APK with Live Cloud Config..." -ForegroundColor Gray
+        & $flutterBin build apk --release $dartDefines
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "Android APK build failed." -ForegroundColor Red
+            exit $LASTEXITCODE
+        }
+        $apkPath = "build\app\outputs\flutter-apk\app-release.apk"
+        if (Test-Path $apkPath) {
+            $apkSize = (Get-Item $apkPath).Length / 1MB
+            Write-Host "  OK: Android Release APK generated: $apkPath ($([math]::Round($apkSize, 2)) MB)" -ForegroundColor Green
+        }
+    }
+    { $_ -in "appbundle", "aab" } {
+        Write-Host "  Compiling Google Play App Bundle (AAB)..." -ForegroundColor Gray
+        & $flutterBin build appbundle --release $dartDefines
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "App Bundle build failed." -ForegroundColor Red
+            exit $LASTEXITCODE
+        }
+        Write-Host "  OK: Google Play App Bundle generated in 'build\app\outputs\bundle\release\'" -ForegroundColor Green
+    }
     "docker" {
         Write-Host "  Building Production Docker Container..." -ForegroundColor Gray
         if (Get-Command "docker" -ErrorAction SilentlyContinue) {
@@ -128,7 +150,7 @@ switch ($Target.ToLower()) {
 Write-Host ""
 Write-Host "[5/5] Deployment Orchestration Complete!" -ForegroundColor Green
 Write-Host "=================================================================" -ForegroundColor Cyan
-Write-Host "  Production Output: build/web/" -ForegroundColor White
+Write-Host "  Target: $Target" -ForegroundColor White
 Write-Host "  Region: Hyderabad (Miyapur & Kondapur EV Grid)" -ForegroundColor White
 Write-Host "  Fleet: 100% Electric (Ather, Ola, TVS, River, Chetak)" -ForegroundColor White
 Write-Host "  Cloud Database: Connected & Live" -ForegroundColor White

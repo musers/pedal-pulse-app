@@ -125,16 +125,25 @@ class _HubMapViewState extends ConsumerState<HubMapView> {
                 decoration: InputDecoration(
                   hintText: 'Search location in Hyderabad (e.g. Gachibowli, Cyber Towers)...',
                   prefixIcon: const Icon(Icons.search_rounded, color: AppColors.primary),
-                  suffixIcon: _searchController.text.isNotEmpty
-                      ? IconButton(
-                          icon: const Icon(Icons.clear, size: 18),
-                          onPressed: () {
-                            _searchController.clear();
-                            _handleSearch('');
-                            _loadLocationAndDistances();
-                          },
+                  suffixIcon: _isSearching
+                      ? const Padding(
+                          padding: EdgeInsets.all(12),
+                          child: SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
+                          ),
                         )
-                      : null,
+                      : (_searchController.text.isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(Icons.clear, size: 18),
+                              onPressed: () {
+                                _searchController.clear();
+                                _handleSearch('');
+                                _loadLocationAndDistances();
+                              },
+                            )
+                          : null),
                   filled: true,
                   fillColor: AppColors.lightSurfaceCard,
                   contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -166,7 +175,7 @@ class _HubMapViewState extends ConsumerState<HubMapView> {
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
                     itemCount: _searchResults.length,
-                    separatorBuilder: (_, __) => const Divider(height: 1),
+                    separatorBuilder: (_, _) => const Divider(height: 1),
                     itemBuilder: (context, idx) {
                       final item = _searchResults[idx];
                       return ListTile(
@@ -422,17 +431,24 @@ class _HubMapViewState extends ConsumerState<HubMapView> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Row(
-                                children: [
-                                  const Icon(Icons.electric_moped_rounded, size: 16, color: AppColors.primary),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    '${station.availableBikesCount} EVs Ready',
-                                    style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
-                                  ),
-                                ],
+                              Flexible(
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(Icons.electric_moped_rounded, size: 16, color: AppColors.primary),
+                                    const SizedBox(width: 4),
+                                    Flexible(
+                                      child: Text(
+                                        '${station.availableBikesCount} EVs Ready',
+                                        style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 11),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                               Row(
+                                mainAxisSize: MainAxisSize.min,
                                 children: [
                                   IconButton(
                                     icon: const Icon(Icons.directions_rounded, size: 18, color: AppColors.primary),
@@ -441,12 +457,12 @@ class _HubMapViewState extends ConsumerState<HubMapView> {
                                     constraints: const BoxConstraints(),
                                     onPressed: () => _openGoogleMapsNavigation(station),
                                   ),
-                                  const SizedBox(width: 8),
+                                  const SizedBox(width: 6),
                                   Text(
                                     isSelected ? '✓ Filtered' : 'Filter Fleet',
                                     style: TextStyle(
                                       color: isSelected ? AppColors.primary : AppColors.textSecondaryLight,
-                                      fontSize: 12,
+                                      fontSize: 11,
                                       fontWeight: FontWeight.bold,
                                     ),
                                   ),

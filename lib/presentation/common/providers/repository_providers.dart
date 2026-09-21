@@ -21,7 +21,7 @@ import '../../../domain/repositories/subscription_repository.dart';
 import '../../../domain/repositories/wallet_repository.dart';
 import '../../../services/maps/google_map_service.dart';
 import '../../../services/maps/map_service.dart';
-import '../../../services/maps/mock_map_service.dart';
+import '../../../services/telematics/telematics_service.dart';
 
 final supabaseDataSourceProvider = Provider<SupabaseDataSource?>((ref) {
   final client = SupabaseConfig.client;
@@ -84,5 +84,16 @@ final googleMapsApiKeyProvider = Provider<String>((ref) {
 final mapServiceProvider = Provider<MapService>((ref) {
   final apiKey = ref.watch(googleMapsApiKeyProvider);
   return GoogleMapService(apiKey: apiKey.isNotEmpty ? apiKey : null);
+});
+
+final telematicsServiceProvider = Provider<TelematicsService>((ref) {
+  final service = TelematicsService();
+  ref.onDispose(service.dispose);
+  return service;
+});
+
+final telematicsStreamProvider = StreamProvider<TelematicsState?>((ref) {
+  final service = ref.watch(telematicsServiceProvider);
+  return service.telematicsStream;
 });
 

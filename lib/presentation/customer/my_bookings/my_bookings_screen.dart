@@ -10,6 +10,7 @@ import '../../../domain/entities/subscription_plan.dart';
 import '../../common/providers/auth_state_provider.dart';
 import '../../common/providers/repository_providers.dart';
 import '../auth/auth_modal.dart';
+import 'widgets/active_trip_telematics_card.dart';
 
 final userBookingsFutureProvider = FutureProvider<List<Booking>>((ref) {
   final repo = ref.watch(bookingRepositoryProvider);
@@ -146,19 +147,36 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen> with Single
           );
         }
 
+        final activeBooking = bookings.cast<Booking?>().firstWhere(
+          (b) => b?.status == BookingStatus.active,
+          orElse: () => null,
+        );
+
         return Center(
           child: ConstrainedBox(
             constraints: BoxConstraints(maxWidth: isDesktop ? 1000 : double.infinity),
             child: RefreshIndicator(
               onRefresh: () async => ref.invalidate(userBookingsFutureProvider),
-              child: ListView.separated(
+              child: ListView(
                 padding: EdgeInsets.all(isDesktop ? 24 : 16),
-                itemCount: bookings.length,
-                separatorBuilder: (context, index) => const SizedBox(height: 16),
-                itemBuilder: (context, index) {
-                  final booking = bookings[index];
-                  return _BookingCard(booking: booking);
-                },
+                children: [
+                  if (activeBooking != null) ...[
+                    ActiveTripTelematicsCard(
+                      booking: activeBooking,
+                      onTripCompleted: () => ref.invalidate(userBookingsFutureProvider),
+                    ),
+                    const SizedBox(height: 24),
+                    const Text(
+                      'All Rental Bookings',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+                  ...bookings.map((booking) => Padding(
+                        padding: const EdgeInsets.only(bottom: 16),
+                        child: _BookingCard(booking: booking),
+                      )),
+                ],
               ),
             ),
           ),

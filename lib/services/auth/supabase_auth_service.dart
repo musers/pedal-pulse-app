@@ -85,7 +85,7 @@ class SupabaseAuthService implements AuthService {
       );
       final user = response.user;
       if (user != null) {
-        return _fetchOrCreateProfile(user);
+        return await _fetchOrCreateProfile(user);
       }
     } catch (_) {
       if (otpToken == '123456') {
@@ -163,7 +163,7 @@ class SupabaseAuthService implements AuthService {
       );
       final user = response.user;
       if (user != null) {
-        return _fetchOrCreateProfile(user);
+        return await _fetchOrCreateProfile(user);
       }
     } catch (_) {
       // Fallback for test credentials or direct Supabase DB profile sync
