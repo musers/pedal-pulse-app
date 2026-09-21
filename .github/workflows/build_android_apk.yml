@@ -2,12 +2,12 @@ name: Build & Release Android APK
 
 on:
   push:
-    branches: [ main, master, develop ]
+    branches: [ main ]
     paths-ignore:
       - '**.md'
       - 'docs/**'
   pull_request:
-    branches: [ main, master, develop ]
+    branches: [ main ]
   workflow_dispatch:
     inputs:
       build_type:
